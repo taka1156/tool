@@ -192,6 +192,22 @@
       color: var(--accent)
     }
 
+    details.block summary.with-tip {
+      list-style: none
+    }
+
+    details.block summary.with-tip::before {
+      content: "▶";
+      color: var(--accent);
+      font-size: 9px;
+      flex: 0 0 10px;
+      transition: transform .12s
+    }
+
+    details.block[open] > summary.with-tip::before {
+      transform: rotate(90deg)
+    }
+
     details.block[open] summary {
       margin-bottom: 14px
     }
@@ -377,12 +393,21 @@
     }
 
     label.with-tip,
-    h2.with-tip {
+    h2.with-tip,
+    summary.with-tip {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
       padding-right: 14px;
+    }
+
+    summary.with-tip {
+      justify-content: flex-start;
+    }
+
+    summary.with-tip .tip {
+      margin-left: auto;
     }
   </style>
 </head>
