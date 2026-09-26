@@ -124,6 +124,12 @@
       margin: -8px 0 12px
     }
 
+    .config-subheading {
+      color: var(--muted);
+      font-size: 11px;
+      margin: 12px 0 6px
+    }
+
     .field {
       margin-bottom: 10px
     }
@@ -444,7 +450,9 @@
       name: '', main: 'src/index.ts', compatibility_date: new Date().toISOString().slice(0, 10),
       compatibility_flags: '', account_id: '', workers_dev: true,
       assets_directory: '', assets_binding: '', assets_not_found_handling: '', assets_run_worker_first: false,
-      logs_config: false, logs_invocation_logs: true, logs_head_sampling_rate: '', advanced_open: false,
+      logs_config: false, logs_enabled: true, logs_invocation_logs: true, logs_head_sampling_rate: '1', logs_persist: true,
+      traces_enabled: false, traces_head_sampling_rate: '1', traces_persist: true,
+      advanced_open: false,
       assets_open: false, kv_open: false, d1_open: false, r2_open: false
     };
     const lists = {
@@ -470,7 +478,7 @@
       routes: 'このWorkerを配信するURLパターン。zone_nameは複数ゾーンで名前が曖昧な場合のみ必要です',
       crons: 'Cron Triggersの実行スケジュール（cron構文、例: */30 * * * *）',
       assets: 'Workersから静的ファイルを配信する設定。directoryにはpublicやdistなどのディレクトリを指定します',
-      logs: 'Workers Logsの有効化、Invocation Logs、リクエストのサンプリング率を設定します',
+      logs: 'Workers ObservabilityのLogsとTraces、それぞれの有効化、サンプリング率、データ保存を設定します',
     };
     function tipBtn(key) { return `<button type="button" class="tip" data-tip="${esc(tips[key])}">?</button>`; }
 
@@ -529,10 +537,17 @@
       return `
   <details class="block" id="advancedSection" ${state.advanced_open ? 'open' : ''}>
     <summary class="with-tip">詳細設定${tipBtn('logs')}</summary>
-    <div class="row-check"><input type="checkbox" id="logs_config" data-k="logs_config" ${state.logs_config ? 'checked' : ''}><label for="logs_config">Workers Logs設定を出力する</label></div>
+    <div class="row-check"><input type="checkbox" id="logs_config" data-k="logs_config" ${state.logs_config ? 'checked' : ''}><label for="logs_config">Observability設定を出力する</label></div>
     <div id="logs_fields" ${state.logs_config ? '' : 'hidden'}>
+      <p class="config-subheading">Logs</p>
+      <div class="row-check"><input type="checkbox" id="logs_enabled" data-k="logs_enabled" ${state.logs_enabled ? 'checked' : ''}><label for="logs_enabled">Logsを有効にする</label></div>
       <div class="row-check"><input type="checkbox" id="logs_invocation_logs" data-k="logs_invocation_logs" ${state.logs_invocation_logs ? 'checked' : ''}><label for="logs_invocation_logs">Invocation Logsを有効にする</label></div>
-      <div class="field"><label for="logs_head_sampling_rate">head_sampling_rate（0〜1、任意）</label><input id="logs_head_sampling_rate" type="number" data-k="logs_head_sampling_rate" min="0" max="1" step="0.01" value="${esc(state.logs_head_sampling_rate)}" placeholder="1"></div>
+      <div class="row-check"><input type="checkbox" id="logs_persist" data-k="logs_persist" ${state.logs_persist ? 'checked' : ''}><label for="logs_persist">有効化したLogsをCloudflareに保存する</label></div>
+      <div class="field"><label for="logs_head_sampling_rate">Logs head_sampling_rate（0〜1）</label><input id="logs_head_sampling_rate" type="number" data-k="logs_head_sampling_rate" min="0" max="1" step="0.01" value="${esc(state.logs_head_sampling_rate)}" placeholder="1"></div>
+      <p class="config-subheading">Traces</p>
+      <div class="row-check"><input type="checkbox" id="traces_enabled" data-k="traces_enabled" ${state.traces_enabled ? 'checked' : ''}><label for="traces_enabled">Tracesを有効にする</label></div>
+      <div class="row-check"><input type="checkbox" id="traces_persist" data-k="traces_persist" ${state.traces_persist ? 'checked' : ''}><label for="traces_persist">有効化したTracesをCloudflareに保存する</label></div>
+      <div class="field"><label for="traces_head_sampling_rate">Traces head_sampling_rate（0〜1）</label><input id="traces_head_sampling_rate" type="number" data-k="traces_head_sampling_rate" min="0" max="1" step="0.01" value="${esc(state.traces_head_sampling_rate)}" placeholder="1"></div>
     </div>
   </details>`;
     }
@@ -564,11 +579,20 @@
       if (state.assets_run_worker_first) assets.run_worker_first = true;
       if (Object.keys(assets).length) cfg.assets = assets;
       if (state.logs_config) {
-        const observability = { enabled: true, logs: { invocation_logs: state.logs_invocation_logs } };
-        if (state.logs_head_sampling_rate !== '') {
-          const rate = Number(state.logs_head_sampling_rate);
-          if (Number.isFinite(rate) && rate >= 0 && rate <= 1) observability.head_sampling_rate = rate;
-        }
+        const logs = {
+          enabled: state.logs_enabled,
+          invocation_logs: state.logs_invocation_logs,
+          persist: state.logs_persist,
+        };
+        const traces = {
+          enabled: state.traces_enabled,
+          persist: state.traces_persist,
+        };
+        const logsRate = Number(state.logs_head_sampling_rate);
+        if (state.logs_head_sampling_rate !== '' && Number.isFinite(logsRate) && logsRate >= 0 && logsRate <= 1) logs.head_sampling_rate = logsRate;
+        const tracesRate = Number(state.traces_head_sampling_rate);
+        if (state.traces_head_sampling_rate !== '' && Number.isFinite(tracesRate) && tracesRate >= 0 && tracesRate <= 1) traces.head_sampling_rate = tracesRate;
+        const observability = { enabled: true, logs, traces };
         cfg.observability = observability;
       }
       const routes = lists.routes.rows.filter(r => r.pattern).map(r => {
@@ -616,7 +640,16 @@
         if (cfg.observability.head_sampling_rate !== undefined) L.push(`head_sampling_rate = ${tv(cfg.observability.head_sampling_rate)}`);
         if (cfg.observability.logs) {
           L.push(''); L.push('[observability.logs]');
+          L.push(`enabled = ${tv(cfg.observability.logs.enabled)}`);
           L.push(`invocation_logs = ${tv(cfg.observability.logs.invocation_logs)}`);
+          if (cfg.observability.logs.head_sampling_rate !== undefined) L.push(`head_sampling_rate = ${tv(cfg.observability.logs.head_sampling_rate)}`);
+          L.push(`persist = ${tv(cfg.observability.logs.persist)}`);
+        }
+        if (cfg.observability.traces) {
+          L.push(''); L.push('[observability.traces]');
+          L.push(`enabled = ${tv(cfg.observability.traces.enabled)}`);
+          if (cfg.observability.traces.head_sampling_rate !== undefined) L.push(`head_sampling_rate = ${tv(cfg.observability.traces.head_sampling_rate)}`);
+          L.push(`persist = ${tv(cfg.observability.traces.persist)}`);
         }
       }
       return L.join('\n');
@@ -687,7 +720,7 @@
           },
           {
             element: '#advancedSection',
-            popover: { title: '詳細設定とログ', description: 'Workers Logsを有効にし、Invocation Logsやサンプリング率を設定できます。', side: 'top' },
+            popover: { title: '詳細設定', description: 'LogsとTracesの有効化、サンプリング率、保存を設定できます。', side: 'top' },
           },
           {
             element: '#formatTabs',

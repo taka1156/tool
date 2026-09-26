@@ -31,6 +31,7 @@ Cloudflare Workersの設定を入力し、`wrangler.jsonc` または `wrangler.t
 - 環境変数（`vars`）の追加
 - KV、D1、R2のバインディング設定
 - RoutesとCron Triggersの設定
+- Observability（Logs / Traces）の設定
 - 設定内容のコピー
 - 対応環境では設定ファイルのダウンロード
 
