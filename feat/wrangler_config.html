@@ -633,12 +633,20 @@
             popover: { title: '基本設定', description: 'Worker名、エントリーポイント、互換性日付など、Workerの基本情報を設定します。', side: 'bottom' },
           },
           {
-            element: '#assetsSection',
-            popover: { title: '静的アセット', description: 'publicやdistなど、配信する静的ファイルのディレクトリとルーティングを設定します。', side: 'bottom' },
-          },
-          {
             element: '#section-vars',
             popover: { title: '環境変数', description: 'Workerコードから利用する平文のvarsを追加できます。秘密情報はここに入力しないでください。', side: 'bottom' },
+          },
+          {
+            element: '#section-routes',
+            popover: { title: 'Routes', description: 'Workerを配信するURLパターンを追加します。', side: 'bottom' },
+          },
+          {
+            element: '#section-crons',
+            popover: { title: 'Cron Triggers', description: 'scheduled handlerを実行するcronスケジュールを追加します。', side: 'bottom' },
+          },
+          {
+            element: '#assetsSection',
+            popover: { title: '静的アセット', description: 'publicやdistなど、配信する静的ファイルのディレクトリとルーティングを設定します。', side: 'bottom' },
           },
           {
             element: '#section-kv',
@@ -651,14 +659,6 @@
           {
             element: '#section-r2',
             popover: { title: 'R2 Buckets', description: 'R2バケットのbinding名とバケット名を設定します。', side: 'bottom' },
-          },
-          {
-            element: '#section-routes',
-            popover: { title: 'Routes', description: 'Workerを配信するURLパターンを追加します。', side: 'bottom' },
-          },
-          {
-            element: '#section-crons',
-            popover: { title: 'Cron Triggers', description: 'scheduled handlerを実行するcronスケジュールを追加します。', side: 'bottom' },
           },
           {
             element: '#advancedSection',
