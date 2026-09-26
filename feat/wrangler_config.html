@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
+  <title>wrangler config</title>
+  <link rel="icon" type="image/png" href="../assets/icon.png">
+  <style>
+    :root {
+      --bg: #15171b;
+      --panel: #1a1d22;
+      --panel2: #1f232a;
+      --line: #262a31;
+      --text: #e8eaed;
+      --muted: #868c98;
+      --accent: #f6821f;
+      --accent-dim: rgba(246, 130, 31, .14);
+      --danger: #e2574c;
+      --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * {
+      box-sizing: inherit
+    }
+
+    html {
+      scroll-padding-top: env(safe-area-inset-top, 0px)
+    }
+
+    html,
+    body {
+      height: 100%
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6
+    }
+
+    header {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--line)
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: .2px
+    }
+
+    header p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      max-width: 1180px;
+      margin: 0 auto
+    }
+
+    @media(min-width:900px) {
+      .layout {
+        grid-template-columns: 1fr 440px
+      }
+    }
+
+    .form {
+      padding: 20px;
+      min-width: 0
+    }
+
+    .out {
+      padding: 20px;
+      border-top: 1px solid var(--line)
+    }
+
+    @media(min-width:900px) {
+      .out {
+        border-top: none;
+        border-left: 1px solid var(--line);
+        position: sticky;
+        top: 0;
+        align-self: start;
+        height: 100vh;
+        overflow: auto
+      }
+    }
+
+    section.block {
+      padding: 18px 0;
+      border-top: 1px solid var(--line)
+    }
+
+    section.block:first-child {
+      border-top: none;
+      padding-top: 0
+    }
+
+    .block h2 {
+      margin: 0 0 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text)
+    }
+
+    .block .hint {
+      color: var(--muted);
+      font-size: 11px;
+      margin: -8px 0 12px
+    }
+
+    .field {
+      margin-bottom: 10px
+    }
+
+    .field label {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px
+    }
+
+    input[type=text],
+    input[type=date] {
+      width: 100%;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      color: var(--text);
+      padding: 7px 9px;
+      font: inherit;
+      font-size: 12.5px
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--accent)
+    }
+
+    .row-check {
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .row-check input {
+      width: 15px;
+      height: 15px;
+      accent-color: var(--accent)
+    }
+
+    .row-check label {
+      font-size: 11px;
+      color: var(--muted)
+    }
+
+    .list-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 6px
+    }
+
+    .list-row input {
+      flex: 1;
+      min-width: 0
+    }
+
+    .rm {
+      flex: 0 0 auto;
+      background: none;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      border-radius: 3px;
+      width: 28px;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1
+    }
+
+    .rm:hover {
+      border-color: var(--danger);
+      color: var(--danger)
+    }
+
+    .add {
+      margin-top: 2px;
+      background: none;
+      border: 1px dashed var(--line);
+      color: var(--muted);
+      border-radius: 3px;
+      padding: 6px 10px;
+      font: inherit;
+      font-size: 11.5px;
+      cursor: pointer;
+      width: 100%;
+      text-align: left
+    }
+
+    .add:hover {
+      border-color: var(--accent);
+      color: var(--accent)
+    }
+
+    .tabs {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 10px;
+      background: var(--panel);
+      border-radius: 4px;
+      padding: 2px;
+      width: fit-content
+    }
+
+    .tab {
+      border: none;
+      background: none;
+      color: var(--muted);
+      font: inherit;
+      font-size: 11.5px;
+      padding: 6px 12px;
+      border-radius: 3px;
+      cursor: pointer
+    }
+
+    .tab.active {
+      background: var(--panel2);
+      color: var(--text)
+    }
+
+    pre#preview {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 14px;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin: 0 0 12px;
+      min-height: 200px
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px
+    }
+
+    .btn {
+      flex: 1;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      color: var(--text);
+      padding: 9px 10px;
+      border-radius: 4px;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer
+    }
+
+    .btn:hover {
+      border-color: var(--accent)
+    }
+
+    .btn.primary {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent)
+    }
+
+    .filename {
+      color: var(--muted);
+      font-size: 11px;
+      margin: 0 0 10px
+    }
+
+    .tip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      border: 1px solid var(--muted);
+      color: var(--muted);
+      background: none;
+      font: inherit;
+      font-size: 9px;
+      line-height: 1;
+      cursor: help;
+      position: relative;
+      margin-left: 5px;
+      padding: 0
+    }
+
+    .tip:hover,
+    .tip.show {
+      border-color: var(--accent);
+      color: var(--accent)
+    }
+
+    .tip::after {
+      content: attr(data-tip);
+      position: absolute;
+      left: 0;
+      top: 20px;
+      width: 200px;
+      max-width: 60vw;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 11px;
+      line-height: 1.5;
+      padding: 8px 9px;
+      z-index: 5;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-3px);
+      transition: opacity .12s, transform .12s;
+      text-align: left;
+      font-weight: 400
+    }
+
+    .tip:hover::after,
+    .tip.show::after {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto
+    }
+
+    label.with-tip,
+    h2.with-tip {
+      display: flex;
+      align-items: center
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>wrangler config</h1>
+    <p>フォームに入力すると、右側に wrangler.jsonc / wrangler.toml をその場で生成します</p>
+  </header>
+  <div class="layout">
+    <div class="form" id="form"></div>
+    <div class="out">
+      <div class="tabs">
+        <button class="tab active" data-fmt="jsonc">wrangler.jsonc</button>
+        <button class="tab" data-fmt="toml">wrangler.toml</button>
+      </div>
+      <p class="filename" id="filename">wrangler.jsonc</p>
+      <pre id="preview"></pre>
+      <div class="actions">
+        <button class="btn primary" id="copyBtn">コピー</button>
+        <button class="btn" id="dlBtn" style="display:none">ダウンロード</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      name: '', main: 'src/index.ts', compatibility_date: new Date().toISOString().slice(0, 10),
+      compatibility_flags: '', account_id: '', workers_dev: true
+    };
+    const lists = {
+      vars: { title: 'vars（環境変数）', fields: [['key', 'KEY'], ['value', 'value']], rows: [] },
+      kv: { title: 'kv_namespaces', fields: [['binding', 'BINDING'], ['id', 'namespace id']], rows: [] },
+      d1: { title: 'd1_databases', fields: [['binding', 'BINDING'], ['database_name', 'database_name'], ['database_id', 'database_id']], rows: [] },
+      r2: { title: 'r2_buckets', fields: [['binding', 'BINDING'], ['bucket_name', 'bucket_name']], rows: [] },
+      routes: { title: 'routes', fields: [['pattern', 'example.com/*'], ['zone_name', 'zone_name（任意）']], rows: [] },
+      crons: { title: 'triggers.crons', fields: [['cron', '*/30 * * * *']], rows: [] },
+    };
+    let fmt = 'jsonc';
+    const tips = {
+      name: 'Workerの名前。ダッシュボードの表示名や既定のworkers.dev URLに使われます',
+      main: 'エントリーポイントとなるスクリプトのパス（例: src/index.ts）',
+      compatibility_date: 'Workers runtimeの互換性日付。この日付以降に追加された挙動が有効になります',
+      compatibility_flags: '特定機能を個別に有効/無効化するフラグ。例: nodejs_compat',
+      account_id: 'CloudflareアカウントID。省略すると wrangler login 中のアカウントが使われます',
+      workers_dev: 'オンにすると *.workers.dev のサブドメインで公開されます',
+      vars: 'コードから env.KEY で参照できる平文の環境変数です。APIキーなど秘密情報は wrangler secret を使ってください',
+      kv: 'Workers KVの名前空間バインディング。binding名がコード内での参照名、idは実際のnamespace ID',
+      d1: 'D1（SQLite）データベースのバインディング',
+      r2: 'R2ストレージバケットのバインディング',
+      routes: 'このWorkerを配信するURLパターン。zone_nameは複数ゾーンで名前が曖昧な場合のみ必要です',
+      crons: 'Cron Triggersの実行スケジュール（cron構文、例: */30 * * * *）',
+    };
+    function tipBtn(key) { return `<button type="button" class="tip" data-tip="${esc(tips[key])}">?</button>`; }
+
+    function baseFieldsHTML() {
+      return `
+  <section class="block">
+    <h2>基本設定</h2>
+    <div class="field"><label class="with-tip">name${tipBtn('name')}</label><input type="text" data-k="name" placeholder="my-worker" value="${esc(state.name)}"></div>
+    <div class="field"><label class="with-tip">main${tipBtn('main')}</label><input type="text" data-k="main" value="${esc(state.main)}"></div>
+    <div class="field"><label class="with-tip">compatibility_date${tipBtn('compatibility_date')}</label><input type="date" data-k="compatibility_date" value="${esc(state.compatibility_date)}"></div>
+    <div class="field"><label class="with-tip">compatibility_flags（カンマ区切り）${tipBtn('compatibility_flags')}</label><input type="text" data-k="compatibility_flags" placeholder="nodejs_compat" value="${esc(state.compatibility_flags)}"></div>
+    <div class="field"><label class="with-tip">account_id（任意）${tipBtn('account_id')}</label><input type="text" data-k="account_id" value="${esc(state.account_id)}"></div>
+    <div class="row-check"><input type="checkbox" id="workers_dev" ${state.workers_dev ? 'checked' : ''}><label for="workers_dev">workers_dev を有効にする</label>${tipBtn('workers_dev')}</div>
+  </section>`;
+    }
+    function listHTML(key, cfg) {
+      const rows = cfg.rows.map((row, i) => `
+    <div class="list-row" data-list="${key}" data-i="${i}">
+      ${cfg.fields.map(([f, ph]) => `<input type="text" data-f="${f}" placeholder="${ph}" value="${esc(row[f] || '')}">`).join('')}
+      <button class="rm" data-rm="${key}:${i}" title="削除">×</button>
+    </div>`).join('');
+      return `
+  <section class="block">
+    <h2 class="with-tip">${cfg.title}${tipBtn(key)}</h2>
+    ${rows}
+    <button class="add" data-add="${key}">+ 追加</button>
+  </section>`;
+    }
+    function esc(s) { return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;') }
+
+    function renderForm() {
+      const el = document.getElementById('form');
+      el.innerHTML = baseFieldsHTML() + Object.entries(lists).map(([k, c]) => listHTML(k, c)).join('');
+    }
+
+    function buildConfig() {
+      const flags = state.compatibility_flags.split(',').map(s => s.trim()).filter(Boolean);
+      const cfg = {
+        name: state.name || undefined,
+        main: state.main || undefined,
+        compatibility_date: state.compatibility_date || undefined,
+        compatibility_flags: flags.length ? flags : undefined,
+        account_id: state.account_id || undefined,
+        workers_dev: state.workers_dev,
+      };
+      const routes = lists.routes.rows.filter(r => r.pattern).map(r => {
+        const o = { pattern: r.pattern }; if (r.zone_name) o.zone_name = r.zone_name; return o;
+      });
+      if (routes.length) cfg.routes = routes;
+      const vars = {}; lists.vars.rows.forEach(r => { if (r.key) vars[r.key] = r.value || ''; });
+      if (Object.keys(vars).length) cfg.vars = vars;
+      const kv = lists.kv.rows.filter(r => r.binding || r.id);
+      if (kv.length) cfg.kv_namespaces = kv;
+      const d1 = lists.d1.rows.filter(r => r.binding || r.database_name || r.database_id);
+      if (d1.length) cfg.d1_databases = d1;
+      const r2 = lists.r2.rows.filter(r => r.binding || r.bucket_name);
+      if (r2.length) cfg.r2_buckets = r2;
+      const crons = lists.crons.rows.map(r => r.cron).filter(Boolean);
+      if (crons.length) cfg.triggers = { crons };
+      return cfg;
+    }
+
+    function toJSONC(cfg) { return JSON.stringify(cfg, (k, v) => v === undefined ? undefined : v, 2); }
+
+    function tv(v) {
+      if (typeof v === 'boolean') return String(v);
+      return `"${String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+    }
+    function toTOML(cfg) {
+      const L = [];
+      ['name', 'main', 'compatibility_date', 'account_id'].forEach(k => { if (cfg[k]) L.push(`${k} = ${tv(cfg[k])}`); });
+      if (cfg.compatibility_flags) L.push(`compatibility_flags = [${cfg.compatibility_flags.map(tv).join(', ')}]`);
+      if (cfg.workers_dev !== undefined) L.push(`workers_dev = ${cfg.workers_dev}`);
+      if (cfg.vars) { L.push(''); L.push('[vars]'); Object.entries(cfg.vars).forEach(([k, v]) => L.push(`${k} = ${tv(v)}`)); }
+      (cfg.routes || []).forEach(r => { L.push(''); L.push('[[routes]]'); L.push(`pattern = ${tv(r.pattern)}`); if (r.zone_name) L.push(`zone_name = ${tv(r.zone_name)}`); });
+      (cfg.kv_namespaces || []).forEach(r => { L.push(''); L.push('[[kv_namespaces]]'); L.push(`binding = ${tv(r.binding)}`); L.push(`id = ${tv(r.id)}`); });
+      (cfg.d1_databases || []).forEach(r => { L.push(''); L.push('[[d1_databases]]'); L.push(`binding = ${tv(r.binding)}`); L.push(`database_name = ${tv(r.database_name)}`); L.push(`database_id = ${tv(r.database_id)}`); });
+      (cfg.r2_buckets || []).forEach(r => { L.push(''); L.push('[[r2_buckets]]'); L.push(`binding = ${tv(r.binding)}`); L.push(`bucket_name = ${tv(r.bucket_name)}`); });
+      if (cfg.triggers) { L.push(''); L.push('[triggers]'); L.push(`crons = [${cfg.triggers.crons.map(tv).join(', ')}]`); }
+      return L.join('\n');
+    }
+
+    function renderOutput() {
+      const cfg = buildConfig();
+      const text = fmt === 'jsonc' ? toJSONC(cfg) : toTOML(cfg);
+      document.getElementById('preview').textContent = text;
+      document.getElementById('filename').textContent = fmt === 'jsonc' ? 'wrangler.jsonc' : 'wrangler.toml';
+    }
+
+    document.getElementById('form').addEventListener('input', e => {
+      const t = e.target;
+      if (t.dataset.k) {
+        state[t.dataset.k] = t.type === 'checkbox' ? t.checked : t.value;
+        renderOutput(); return;
+      }
+      if (t.id === 'workers_dev') { state.workers_dev = t.checked; renderOutput(); return; }
+      const row = t.closest('.list-row');
+      if (row) {
+        const key = row.dataset.list, i = +row.dataset.i, f = t.dataset.f;
+        lists[key].rows[i][f] = t.value;
+        renderOutput();
+      }
+    });
+    document.getElementById('form').addEventListener('click', e => {
+      const add = e.target.dataset.add;
+      if (add) { lists[add].rows.push({}); renderForm(); renderOutput(); return; }
+      const rm = e.target.dataset.rm;
+      if (rm) { const [key, i] = rm.split(':'); lists[key].rows.splice(+i, 1); renderForm(); renderOutput(); }
+    });
+    document.body.addEventListener('click', e => {
+      const tip = e.target.closest('.tip');
+      document.querySelectorAll('.tip.show').forEach(t => { if (t !== tip) t.classList.remove('show'); });
+      if (tip) { tip.classList.toggle('show'); e.stopPropagation(); }
+    });
+    document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      b.classList.add('active'); fmt = b.dataset.fmt; renderOutput();
+    }));
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('copyBtn');
+      try {
+        await navigator.clipboard.writeText(document.getElementById('preview').textContent);
+        btn.textContent = 'コピーしました'; setTimeout(() => btn.textContent = 'コピー', 1400);
+      } catch (e) { btn.textContent = 'コピーできませんでした'; setTimeout(() => btn.textContent = 'コピー', 1400); }
+    });
+
+    (async () => {
+      try {
+        const downloads = await claude.use('downloads');
+        if (downloads) {
+          const dl = document.getElementById('dlBtn');
+          dl.style.display = 'block';
+          dl.addEventListener('click', async () => {
+            const filename = fmt === 'jsonc' ? 'wrangler.jsonc' : 'wrangler.toml';
+            try { await downloads.save({ filename, data: document.getElementById('preview').textContent }); }
+            catch (e) { }
+          });
+        }
+      } catch (e) { }
+    })();
+
+    renderForm();
+    renderOutput();
+  </script>
+</body>
+
+</html>
