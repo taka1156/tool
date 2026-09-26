@@ -519,7 +519,7 @@
       el.querySelectorAll('details[data-open-key]').forEach(section => {
         state[section.dataset.openKey] = section.open;
       });
-      el.innerHTML = baseFieldsHTML() + listHTML('vars', lists.vars) + assetsFieldsHTML() + Object.entries(lists).filter(([key]) => key !== 'vars').map(([key, cfg]) => listHTML(key, cfg)).join('') + advancedFieldsHTML();
+      el.innerHTML = baseFieldsHTML() + listHTML('vars', lists.vars) + listHTML('routes', lists.routes) + listHTML('crons', lists.crons) + assetsFieldsHTML() + Object.entries(lists).filter(([key]) => !['vars', 'routes', 'crons'].includes(key)).map(([key, cfg]) => listHTML(key, cfg)).join('') + advancedFieldsHTML();
     }
 
     function buildConfig() {
