@@ -39,6 +39,7 @@ Cloudflare Workersの設定を入力し、`wrangler.jsonc` または `wrangler.t
 ```text
 .
 ├── index.html                 # ツール一覧
+├── tools.js                   # ツール一覧のデータと描画
 ├── assets/
 │   ├── apple-touch-icon.png   # iOS用アイコン
 │   └── icon.png               # ファビコン

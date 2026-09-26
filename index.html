@@ -131,22 +131,22 @@
     <p>自作ツールの一覧です</p>
   </header>
   <main>
-    <ul>
-      <li>
-        <a class="card" href="./crop.html">
-          <div class="name">crop<span class="path">crop.html</span></div>
-          <div class="desc">背景透過・画像のリサイズ・フォーマット変換</div>
-        </a>
-      </li>
-      <li>
-        <a class="card" href="./wrangler_config.html">
-          <div class="name">wrangler config<span class="path">wrangler_config.html</span></div>
-          <div class="desc">フォーム入力から wrangler.jsonc / wrangler.toml を生成</div>
-        </a>
-      </li>
-    </ul>
+    <ul id="tool-list"></ul>
   </main>
   <footer>tool/ 配下に各ツールのHTMLを置いて使います</footer>
+
+  <script src="./tools.js"></script>
+  <script>
+    (() => {
+      document.getElementById('tool-list').innerHTML = tools.map(tool => `
+        <li>
+          <a class="card" href="${tool.href}">
+            <div class="name">${tool.name}<span class="path">${tool.path}</span></div>
+            <div class="desc">${tool.description}</div>
+          </a>
+        </li>`).join('');
+    })();
+  </script>
 </body>
 
 </html>
