@@ -26,14 +26,25 @@
 
 Cloudflare Workersの設定を入力し、`wrangler.jsonc` または `wrangler.toml` を生成するツールです。
 
-- Worker名、エントリーポイント、互換性日付の設定
-- compatibility flags、account ID、`workers_dev` の設定
-- 環境変数（`vars`）の追加
-- KV、D1、R2のバインディング設定
-- RoutesとCron Triggersの設定
-- Observability（Logs / Traces）の設定
-- 設定内容のコピー
-- 対応環境では設定ファイルのダウンロード
+#### 生成できる項目
+
+- 基本設定: `name`、`main`、`compatibility_date`、`compatibility_flags`、`account_id`、`workers_dev`
+- `vars`（文字列形式の環境変数）
+- Routes（`pattern`、任意の`zone_name`）とCron Triggers
+- KV、D1、R2のバインディング
+- Workers Assets（`directory`、`binding`、`not_found_handling`、`run_worker_first`）
+- Observability: Logs / Tracesの有効化、サンプリング率、保存設定。LogsではInvocation Logsも設定できます
+- `wrangler.jsonc` / `wrangler.toml`の生成、コピー。対応環境ではダウンロード
+
+#### 手動で追加する項目
+
+このツールはWrangler設定全体を網羅していません。必要な項目は生成後の設定ファイルに追加し、プロジェクトに合わせて確認してください。
+
+- Secrets: `vars`に秘密情報を入れず、`wrangler secret`や`.dev.vars`などで管理してください
+- Durable Objectsのバインディングとライフサイクル設定（`migrations` / `exports`）
+- Queue、Service Binding、Workflow、Hyperdriveなど、このツールに入力欄がないBindings
+- `build`、`dev`、`limits`、`placement`などの追加のWrangler設定
+- `zone_id`やCustom Domainなど、Routesの追加オプション
 
 ## 構成
 

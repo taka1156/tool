@@ -210,7 +210,7 @@
       transition: transform .12s
     }
 
-    details.block[open] > summary.with-tip::before {
+    details.block[open]>summary.with-tip::before {
       transform: rotate(90deg)
     }
 
@@ -449,7 +449,7 @@
     const state = {
       name: '', main: 'src/index.ts', compatibility_date: new Date().toISOString().slice(0, 10),
       compatibility_flags: '', account_id: '', workers_dev: true,
-      assets_directory: '', assets_binding: '', assets_not_found_handling: '', assets_run_worker_first: false,
+      assets_directory: '', assets_binding: '', assets_html_handling: '', assets_not_found_handling: '', assets_run_worker_first: false,
       logs_config: false, logs_enabled: true, logs_invocation_logs: true, logs_head_sampling_rate: '1', logs_persist: true,
       traces_enabled: false, traces_head_sampling_rate: '1', traces_persist: true,
       advanced_open: false,
@@ -457,9 +457,9 @@
     };
     const lists = {
       vars: { title: 'vars（環境変数）', fields: [['key', 'KEY'], ['value', 'value']], rows: [] },
-      kv: { title: 'kv_namespaces', fields: [['binding', 'BINDING'], ['id', 'namespace id']], rows: [] },
-      d1: { title: 'd1_databases', fields: [['binding', 'BINDING'], ['database_name', 'database_name'], ['database_id', 'database_id']], rows: [] },
-      r2: { title: 'r2_buckets', fields: [['binding', 'BINDING'], ['bucket_name', 'bucket_name']], rows: [] },
+      kv: { title: 'kv_namespaces', fields: [['binding', 'BINDING'], ['id', 'namespace id'], ['preview_id', 'preview_id（任意）']], rows: [] },
+      d1: { title: 'd1_databases', fields: [['binding', 'BINDING'], ['database_name', 'database_name'], ['database_id', 'database_id'], ['preview_database_id', 'preview_database_id（任意）'], ['migrations_dir', 'migrations_dir（任意）']], rows: [] },
+      r2: { title: 'r2_buckets', fields: [['binding', 'BINDING'], ['bucket_name', 'bucket_name'], ['preview_bucket_name', 'preview_bucket_name（任意）'], ['jurisdiction', 'jurisdiction（任意）']], rows: [] },
       routes: { title: 'routes', fields: [['pattern', 'example.com/*'], ['zone_name', 'zone_name（任意）']], rows: [] },
       crons: { title: 'triggers.crons', fields: [['cron', '*/30 * * * *']], rows: [] },
     };
@@ -523,6 +523,13 @@
     <summary class="with-tip">Assets（静的アセット）${tipBtn('assets')}</summary>
     <div class="field"><label class="required" for="assets_directory">directory（Assets利用時は必須）</label><input id="assets_directory" type="text" data-k="assets_directory" placeholder="./public/" value="${esc(state.assets_directory)}"></div>
     <div class="field"><label for="assets_binding">binding（任意）</label><input id="assets_binding" type="text" data-k="assets_binding" placeholder="ASSETS" value="${esc(state.assets_binding)}"></div>
+    <div class="field"><label for="assets_html_handling">html_handling</label><select id="assets_html_handling" data-k="assets_html_handling">
+      <option value="" ${state.assets_html_handling === '' ? 'selected' : ''}>指定しない</option>
+      <option value="auto-trailing-slash" ${state.assets_html_handling === 'auto-trailing-slash' ? 'selected' : ''}>auto-trailing-slash</option>
+      <option value="force-trailing-slash" ${state.assets_html_handling === 'force-trailing-slash' ? 'selected' : ''}>force-trailing-slash</option>
+      <option value="drop-trailing-slash" ${state.assets_html_handling === 'drop-trailing-slash' ? 'selected' : ''}>drop-trailing-slash</option>
+      <option value="none" ${state.assets_html_handling === 'none' ? 'selected' : ''}>none</option>
+    </select></div>
     <div class="field"><label for="assets_not_found_handling">not_found_handling</label><select id="assets_not_found_handling" data-k="assets_not_found_handling">
       <option value="" ${state.assets_not_found_handling === '' ? 'selected' : ''}>指定しない</option>
       <option value="none" ${state.assets_not_found_handling === 'none' ? 'selected' : ''}>none</option>
@@ -565,6 +572,7 @@
     function buildConfig() {
       const flags = state.compatibility_flags.split(',').map(s => s.trim()).filter(Boolean);
       const cfg = {
+        '$schema': './node_modules/wrangler/config-schema.json',
         name: state.name || undefined,
         main: state.main || undefined,
         compatibility_date: state.compatibility_date || undefined,
@@ -575,6 +583,7 @@
       const assets = {};
       if (state.assets_directory) assets.directory = state.assets_directory;
       if (state.assets_binding) assets.binding = state.assets_binding;
+      if (state.assets_html_handling) assets.html_handling = state.assets_html_handling;
       if (state.assets_not_found_handling) assets.not_found_handling = state.assets_not_found_handling;
       if (state.assets_run_worker_first) assets.run_worker_first = true;
       if (Object.keys(assets).length) cfg.assets = assets;
@@ -626,13 +635,13 @@
       if (cfg.workers_dev !== undefined) L.push(`workers_dev = ${cfg.workers_dev}`);
       if (cfg.vars) { L.push(''); L.push('[vars]'); Object.entries(cfg.vars).forEach(([k, v]) => L.push(`${k} = ${tv(v)}`)); }
       (cfg.routes || []).forEach(r => { L.push(''); L.push('[[routes]]'); L.push(`pattern = ${tv(r.pattern)}`); if (r.zone_name) L.push(`zone_name = ${tv(r.zone_name)}`); });
-      (cfg.kv_namespaces || []).forEach(r => { L.push(''); L.push('[[kv_namespaces]]'); L.push(`binding = ${tv(r.binding)}`); L.push(`id = ${tv(r.id)}`); });
-      (cfg.d1_databases || []).forEach(r => { L.push(''); L.push('[[d1_databases]]'); L.push(`binding = ${tv(r.binding)}`); L.push(`database_name = ${tv(r.database_name)}`); L.push(`database_id = ${tv(r.database_id)}`); });
-      (cfg.r2_buckets || []).forEach(r => { L.push(''); L.push('[[r2_buckets]]'); L.push(`binding = ${tv(r.binding)}`); L.push(`bucket_name = ${tv(r.bucket_name)}`); });
+      (cfg.kv_namespaces || []).forEach(r => { L.push(''); L.push('[[kv_namespaces]]'); L.push(`binding = ${tv(r.binding)}`); L.push(`id = ${tv(r.id)}`); if (r.preview_id) L.push(`preview_id = ${tv(r.preview_id)}`); });
+      (cfg.d1_databases || []).forEach(r => { L.push(''); L.push('[[d1_databases]]'); L.push(`binding = ${tv(r.binding)}`); L.push(`database_name = ${tv(r.database_name)}`); L.push(`database_id = ${tv(r.database_id)}`); if (r.preview_database_id) L.push(`preview_database_id = ${tv(r.preview_database_id)}`); if (r.migrations_dir) L.push(`migrations_dir = ${tv(r.migrations_dir)}`); });
+      (cfg.r2_buckets || []).forEach(r => { L.push(''); L.push('[[r2_buckets]]'); L.push(`binding = ${tv(r.binding)}`); L.push(`bucket_name = ${tv(r.bucket_name)}`); if (r.preview_bucket_name) L.push(`preview_bucket_name = ${tv(r.preview_bucket_name)}`); if (r.jurisdiction) L.push(`jurisdiction = ${tv(r.jurisdiction)}`); });
       if (cfg.triggers) { L.push(''); L.push('[triggers]'); L.push(`crons = [${cfg.triggers.crons.map(tv).join(', ')}]`); }
       if (cfg.assets) {
         L.push(''); L.push('[assets]');
-        ['directory', 'binding', 'not_found_handling', 'run_worker_first'].forEach(k => { if (cfg.assets[k] !== undefined) L.push(`${k} = ${tv(cfg.assets[k])}`); });
+        ['directory', 'binding', 'html_handling', 'not_found_handling', 'run_worker_first'].forEach(k => { if (cfg.assets[k] !== undefined) L.push(`${k} = ${tv(cfg.assets[k])}`); });
       }
       if (cfg.observability) {
         L.push(''); L.push('[observability]');
