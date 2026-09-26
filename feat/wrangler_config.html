@@ -101,19 +101,19 @@
       }
     }
 
-    section.block {
+    .block {
       padding: 18px 0;
       border-top: 1px solid var(--line)
     }
 
-    section.block:first-child {
+    .block:first-child {
       border-top: none;
       padding-top: 0
     }
 
     .block h2 {
       margin: 0 0 12px;
-      font-size: 12px;
+      font-size: 14px;
       font-weight: 600;
       color: var(--text)
     }
@@ -183,7 +183,7 @@
 
     details.block summary {
       cursor: pointer;
-      font-size: 12px;
+      font-size: 14px;
       font-weight: 600;
       color: var(--text)
     }
@@ -410,14 +410,17 @@
 
   <script>
     const onboardingParam = new URLSearchParams(window.location.search).get('onBoarding');
-    const forceOnboarding = ['1', 'true'].includes((onboardingParam || '').toLowerCase());
-    let onboardingPending = forceOnboarding || !document.cookie.split(';').some(cookie => cookie.trim() === 'onBoarding=1');
+    const onboardingValue = (onboardingParam || '').toLowerCase();
+    const forceOnboarding = ['1', 'true'].includes(onboardingValue);
+    const disableOnboarding = ['0', 'false'].includes(onboardingValue);
+    let onboardingPending = !disableOnboarding && (forceOnboarding || !document.cookie.split(';').some(cookie => cookie.trim() === 'onBoarding=1'));
 
     const state = {
       name: '', main: 'src/index.ts', compatibility_date: new Date().toISOString().slice(0, 10),
       compatibility_flags: '', account_id: '', workers_dev: true,
       assets_directory: '', assets_binding: '', assets_not_found_handling: '', assets_run_worker_first: false,
-      logs_config: false, logs_invocation_logs: true, logs_head_sampling_rate: '', advanced_open: false
+      logs_config: false, logs_invocation_logs: true, logs_head_sampling_rate: '', advanced_open: false,
+      assets_open: false, kv_open: false, d1_open: false, r2_open: false
     };
     const lists = {
       vars: { title: 'vars（環境変数）', fields: [['key', 'KEY'], ['value', 'value']], rows: [] },
@@ -464,6 +467,14 @@
       ${cfg.fields.map(([f, ph]) => `<input type="text" data-f="${f}" placeholder="${ph}" value="${esc(row[f] || '')}">`).join('')}
       <button class="rm" data-rm="${key}:${i}" title="削除">×</button>
     </div>`).join('');
+      const optional = ['kv', 'd1', 'r2'].includes(key);
+      const openKey = `${key}_open`;
+      if (optional) return `
+  <details class="block" id="section-${key}" data-open-key="${openKey}" ${state[openKey] ? 'open' : ''}>
+    <summary class="with-tip">${cfg.title}${tipBtn(key)}</summary>
+    ${rows}
+    <button class="add" data-add="${key}">+ 追加</button>
+  </details>`;
       return `
   <section class="block" id="section-${key}">
     <h2 class="with-tip">${cfg.title}${tipBtn(key)}</h2>
@@ -475,8 +486,8 @@
 
     function assetsFieldsHTML() {
       return `
-  <section class="block" id="assetsSection">
-    <h2 class="with-tip">Assets（静的アセット）${tipBtn('assets')}</h2>
+  <details class="block" id="assetsSection" data-open-key="assets_open" ${state.assets_open ? 'open' : ''}>
+    <summary class="with-tip">Assets（静的アセット）${tipBtn('assets')}</summary>
     <div class="field"><label class="required" for="assets_directory">directory（Assets利用時は必須）</label><input id="assets_directory" type="text" data-k="assets_directory" placeholder="./public/" value="${esc(state.assets_directory)}"></div>
     <div class="field"><label for="assets_binding">binding（任意）</label><input id="assets_binding" type="text" data-k="assets_binding" placeholder="ASSETS" value="${esc(state.assets_binding)}"></div>
     <div class="field"><label for="assets_not_found_handling">not_found_handling</label><select id="assets_not_found_handling" data-k="assets_not_found_handling">
@@ -486,7 +497,7 @@
       <option value="single-page-application" ${state.assets_not_found_handling === 'single-page-application' ? 'selected' : ''}>single-page-application</option>
     </select></div>
     <div class="row-check"><input type="checkbox" id="assets_run_worker_first" data-k="assets_run_worker_first" ${state.assets_run_worker_first ? 'checked' : ''}><label for="assets_run_worker_first">常にWorkerスクリプトを先に実行する</label></div>
-  </section>`;
+  </details>`;
     }
 
     function advancedFieldsHTML() {
@@ -505,7 +516,10 @@
       const el = document.getElementById('form');
       const advanced = document.getElementById('advancedSection');
       if (advanced) state.advanced_open = advanced.open;
-      el.innerHTML = baseFieldsHTML() + assetsFieldsHTML() + Object.entries(lists).map(([k, c]) => listHTML(k, c)).join('') + advancedFieldsHTML();
+      el.querySelectorAll('details[data-open-key]').forEach(section => {
+        state[section.dataset.openKey] = section.open;
+      });
+      el.innerHTML = baseFieldsHTML() + listHTML('vars', lists.vars) + assetsFieldsHTML() + Object.entries(lists).filter(([key]) => key !== 'vars').map(([key, cfg]) => listHTML(key, cfg)).join('') + advancedFieldsHTML();
     }
 
     function buildConfig() {
@@ -701,6 +715,7 @@
     });
     document.getElementById('form').addEventListener('toggle', e => {
       if (e.target.id === 'advancedSection') state.advanced_open = e.target.open;
+      if (e.target.dataset.openKey) state[e.target.dataset.openKey] = e.target.open;
     }, true);
     document.body.addEventListener('click', e => {
       const tip = e.target.closest('.tip');

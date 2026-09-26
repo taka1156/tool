@@ -774,8 +774,10 @@
     const editor = document.getElementById('editor');
     const cropImg = document.getElementById('cropImg');
     const onboardingParam = new URLSearchParams(window.location.search).get('onBoarding');
-    const forceOnboarding = ['1', 'true'].includes((onboardingParam || '').toLowerCase());
-    let onboardingPending = forceOnboarding || !document.cookie.split(';').some(cookie => cookie.trim() === 'onBoarding=1');
+    const onboardingValue = (onboardingParam || '').toLowerCase();
+    const forceOnboarding = ['1', 'true'].includes(onboardingValue);
+    const disableOnboarding = ['0', 'false'].includes(onboardingValue);
+    let onboardingPending = !disableOnboarding && (forceOnboarding || !document.cookie.split(';').some(cookie => cookie.trim() === 'onBoarding=1'));
     let onboardingDriver = null;
 
     function rememberOnboarding() {
