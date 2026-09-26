@@ -8,6 +8,8 @@
   <title>画像クロップ・変換ツール</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.js.iife.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.css">
   <link rel="icon" type="image/png" href="../assets/icon.png">
   <style>
     *,
@@ -605,10 +607,10 @@
     <div class="editor" id="editor">
 
       <!-- Left: Cropper -->
-      <div class="crop-panel">
+      <div class="crop-panel" id="cropPanel">
         <div class="crop-panel-header">
           <span>クロップ</span>
-          <div class="rotate-btns">
+          <div class="rotate-btns" id="rotateBtns">
             <button class="icon-btn" onclick="doRotate(-90)" title="左回転">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
@@ -652,7 +654,7 @@
         <!-- Aspect ratio -->
         <div class="card">
           <div class="card-title">縦横比</div>
-          <div class="ratio-grid">
+          <div class="ratio-grid" id="ratioGrid">
             <button class="ratio-btn active" data-ratio="free">自由</button>
             <button class="ratio-btn" data-ratio="1">1:1</button>
             <button class="ratio-btn" data-ratio="4/3">4:3</button>
@@ -663,7 +665,7 @@
         </div>
 
         <!-- Output size -->
-        <div class="card">
+        <div class="card" id="outputSizeCard">
           <div class="card-title">出力サイズ（省略で元サイズ）</div>
           <div class="field-row">
             <label>幅</label>
@@ -678,7 +680,7 @@
         </div>
 
         <!-- Format & quality -->
-        <div class="card">
+        <div class="card" id="formatCard">
           <div class="card-title">フォーマット</div>
           <div class="field-row">
             <label>形式</label>
@@ -697,7 +699,7 @@
 
         <!-- Background removal -->
         <div class="card">
-          <div class="toggle-row">
+          <div class="toggle-row" id="bgToggleRow">
             <span class="toggle-label">背景透過</span>
             <label class="toggle">
               <input type="checkbox" id="bgToggle">
@@ -771,6 +773,134 @@
     const fileInput = document.getElementById('fileInput');
     const editor = document.getElementById('editor');
     const cropImg = document.getElementById('cropImg');
+    const onboardingParam = new URLSearchParams(window.location.search).get('onBoarding');
+    const forceOnboarding = ['1', 'true'].includes((onboardingParam || '').toLowerCase());
+    let onboardingPending = forceOnboarding || !document.cookie.split(';').some(cookie => cookie.trim() === 'onBoarding=1');
+    let onboardingDriver = null;
+
+    function rememberOnboarding() {
+      document.cookie = 'onBoarding=1; Max-Age=31536000; Path=/; SameSite=Lax';
+    }
+
+    function createOnboardingDriver(steps, onDestroyed) {
+      const createDriver = window.driver?.js?.driver;
+      if (typeof createDriver !== 'function') return null;
+      let driver;
+      const finish = () => onDestroyed?.();
+      driver = createDriver({
+        showProgress: true,
+        progressText: '{{current}} / {{total}}',
+        nextBtnText: '次へ',
+        prevBtnText: '戻る',
+        doneBtnText: '完了',
+        overlayOpacity: 0.55,
+        steps,
+        onCloseClick: () => {
+          finish();
+          driver.destroy();
+        },
+        onDoneClick: () => {
+          finish();
+          driver.destroy();
+        },
+        onDestroyed: finish,
+      });
+      return driver;
+    }
+
+    function startUploadOnboarding() {
+      const driver = createOnboardingDriver([
+        {
+          element: '#dropZone',
+          popover: {
+            title: '画像を読み込む',
+            description: 'ここに画像をドロップするか、ファイル選択から画像を読み込めます。',
+            side: 'bottom',
+          },
+        },
+        {
+          element: '#browseBtn',
+          popover: {
+            title: 'ファイルを選択',
+            description: '画像を選ぶと、クロップと変換の設定画面に進みます。',
+            side: 'bottom',
+          },
+        },
+      ], () => {
+        rememberOnboarding();
+        if (onboardingDriver === driver) onboardingDriver = null;
+      });
+      onboardingDriver = driver;
+      driver?.drive();
+    }
+
+    function startEditorOnboarding() {
+      if (!onboardingPending) return;
+      const driver = createOnboardingDriver([
+        {
+          element: '#cropPanel',
+          popover: {
+            title: '切り抜き範囲',
+            description: '画像上でドラッグして範囲を調整します。',
+            side: 'right',
+          },
+        },
+        {
+          element: '#rotateBtns',
+          popover: {
+            title: '回転・反転',
+            description: '画像を90度回転したり、水平・垂直に反転できます。',
+            side: 'bottom',
+          },
+        },
+        {
+          element: '#ratioGrid',
+          popover: {
+            title: '縦横比',
+            description: '用途に合わせた比率を選ぶか、「自由」のまま切り抜けます。',
+            side: 'bottom',
+          },
+        },
+        {
+          element: '#outputSizeCard',
+          popover: {
+            title: '出力サイズ',
+            description: '幅・高さを指定できます。空欄なら切り抜き範囲のサイズになります。',
+            side: 'left',
+          },
+        },
+        {
+          element: '#formatCard',
+          popover: {
+            title: '形式と品質',
+            description: 'JPEG、PNG、WebPと、JPEG・WebPの品質を設定します。',
+            side: 'left',
+          },
+        },
+        {
+          element: '#bgToggleRow',
+          popover: {
+            title: '背景透過',
+            description: '指定色に近い部分を透過できます。背景透過を使うとPNGで出力されます。',
+            side: 'left',
+          },
+        },
+        {
+          element: '#applyBtn',
+          popover: {
+            title: '変換して保存',
+            description: '設定した内容で変換します。結果を確認してから画像をダウンロードできます。',
+            side: 'top',
+          },
+        },
+      ], () => {
+        rememberOnboarding();
+        onboardingPending = false;
+        if (onboardingDriver === driver) onboardingDriver = null;
+      });
+      onboardingDriver = driver;
+      driver?.drive();
+    }
 
     // ── Drop zone ──────────────────────────────────────────
     document.getElementById('browseBtn').addEventListener('click', () => fileInput.click());
@@ -801,6 +931,8 @@
           responsive: true,
           checkCrossOrigin: false,
         });
+        if (onboardingDriver) onboardingDriver.destroy();
+        if (onboardingPending) startEditorOnboarding();
       };
     }
 
@@ -991,6 +1123,8 @@
       document.getElementById('bgSettings').classList.add('hidden');
       resultDataURL = null;
     }
+
+    if (onboardingPending) startUploadOnboarding();
   </script>
 </body>
 
