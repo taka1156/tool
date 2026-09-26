@@ -133,8 +133,20 @@
       margin-bottom: 4px
     }
 
+    .required-mark {
+      color: var(--accent);
+      padding-left: 4px;
+    }
+
+    label.required:not(.with-tip)::after {
+      content: " *";
+      color: var(--accent)
+    }
+
     input[type=text],
-    input[type=date] {
+    input[type=date],
+    input[type=number],
+    select {
       width: 100%;
       background: var(--panel);
       border: 1px solid var(--line);
@@ -165,6 +177,21 @@
     .row-check label {
       font-size: 11px;
       color: var(--muted)
+    }
+
+    details.block summary {
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text)
+    }
+
+    details.block summary::marker {
+      color: var(--accent)
+    }
+
+    details.block[open] summary {
+      margin-bottom: 14px
     }
 
     .list-row {
@@ -301,8 +328,13 @@
       line-height: 1;
       cursor: help;
       position: relative;
-      margin-left: 5px;
+      margin-left: 0;
       padding: 0
+    }
+
+    .row-check .tip {
+      margin-left: auto;
+      margin-right: 14px
     }
 
     .tip:hover,
@@ -314,7 +346,8 @@
     .tip::after {
       content: attr(data-tip);
       position: absolute;
-      left: 0;
+      left: auto;
+      right: 0;
       top: 20px;
       width: 200px;
       max-width: 60vw;
@@ -344,7 +377,10 @@
     label.with-tip,
     h2.with-tip {
       display: flex;
-      align-items: center
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding-right: 14px;
     }
   </style>
 </head>
@@ -373,7 +409,9 @@
   <script>
     const state = {
       name: '', main: 'src/index.ts', compatibility_date: new Date().toISOString().slice(0, 10),
-      compatibility_flags: '', account_id: '', workers_dev: true
+      compatibility_flags: '', account_id: '', workers_dev: true,
+      assets_directory: '', assets_binding: '', assets_not_found_handling: '', assets_run_worker_first: false,
+      logs_config: false, logs_invocation_logs: true, logs_head_sampling_rate: '', advanced_open: false
     };
     const lists = {
       vars: { title: 'vars（環境変数）', fields: [['key', 'KEY'], ['value', 'value']], rows: [] },
@@ -386,7 +424,7 @@
     let fmt = 'jsonc';
     const tips = {
       name: 'Workerの名前。ダッシュボードの表示名や既定のworkers.dev URLに使われます',
-      main: 'エントリーポイントとなるスクリプトのパス（例: src/index.ts）',
+      main: 'エントリーポイントとなるスクリプトのパス（例: src/index.ts）。AssetsのみのWorkerでは省略できます',
       compatibility_date: 'Workers runtimeの互換性日付。この日付以降に追加された挙動が有効になります',
       compatibility_flags: '特定機能を個別に有効/無効化するフラグ。例: nodejs_compat',
       account_id: 'CloudflareアカウントID。省略すると wrangler login 中のアカウントが使われます',
@@ -397,6 +435,8 @@
       r2: 'R2ストレージバケットのバインディング',
       routes: 'このWorkerを配信するURLパターン。zone_nameは複数ゾーンで名前が曖昧な場合のみ必要です',
       crons: 'Cron Triggersの実行スケジュール（cron構文、例: */30 * * * *）',
+      assets: 'Workersから静的ファイルを配信する設定。directoryにはpublicやdistなどのディレクトリを指定します',
+      logs: 'Workers Logsの有効化、Invocation Logs、リクエストのサンプリング率を設定します',
     };
     function tipBtn(key) { return `<button type="button" class="tip" data-tip="${esc(tips[key])}">?</button>`; }
 
@@ -404,9 +444,9 @@
       return `
   <section class="block">
     <h2>基本設定</h2>
-    <div class="field"><label class="with-tip">name${tipBtn('name')}</label><input type="text" data-k="name" placeholder="my-worker" value="${esc(state.name)}"></div>
-    <div class="field"><label class="with-tip">main${tipBtn('main')}</label><input type="text" data-k="main" value="${esc(state.main)}"></div>
-    <div class="field"><label class="with-tip">compatibility_date${tipBtn('compatibility_date')}</label><input type="date" data-k="compatibility_date" value="${esc(state.compatibility_date)}"></div>
+    <div class="field"><label class="with-tip"><span>name<span class="required-mark" aria-hidden="true">*</span></span>${tipBtn('name')}</label><input type="text" data-k="name" placeholder="my-worker" value="${esc(state.name)}"></div>
+    <div class="field"><label class="with-tip"><span>main<span class="required-mark" aria-hidden="true">*</span></span>${tipBtn('main')}</label><input type="text" data-k="main" value="${esc(state.main)}"></div>
+    <div class="field"><label class="with-tip"><span>compatibility_date<span class="required-mark" aria-hidden="true">*</span></span>${tipBtn('compatibility_date')}</label><input type="date" data-k="compatibility_date" value="${esc(state.compatibility_date)}"></div>
     <div class="field"><label class="with-tip">compatibility_flags（カンマ区切り）${tipBtn('compatibility_flags')}</label><input type="text" data-k="compatibility_flags" placeholder="nodejs_compat" value="${esc(state.compatibility_flags)}"></div>
     <div class="field"><label class="with-tip">account_id（任意）${tipBtn('account_id')}</label><input type="text" data-k="account_id" value="${esc(state.account_id)}"></div>
     <div class="row-check"><input type="checkbox" id="workers_dev" ${state.workers_dev ? 'checked' : ''}><label for="workers_dev">workers_dev を有効にする</label>${tipBtn('workers_dev')}</div>
@@ -427,9 +467,39 @@
     }
     function esc(s) { return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;') }
 
+    function assetsFieldsHTML() {
+      return `
+  <section class="block">
+    <h2 class="with-tip">Assets（静的アセット）${tipBtn('assets')}</h2>
+    <div class="field"><label class="required" for="assets_directory">directory（Assets利用時は必須）</label><input id="assets_directory" type="text" data-k="assets_directory" placeholder="./public/" value="${esc(state.assets_directory)}"></div>
+    <div class="field"><label for="assets_binding">binding（任意）</label><input id="assets_binding" type="text" data-k="assets_binding" placeholder="ASSETS" value="${esc(state.assets_binding)}"></div>
+    <div class="field"><label for="assets_not_found_handling">not_found_handling</label><select id="assets_not_found_handling" data-k="assets_not_found_handling">
+      <option value="" ${state.assets_not_found_handling === '' ? 'selected' : ''}>指定しない</option>
+      <option value="none" ${state.assets_not_found_handling === 'none' ? 'selected' : ''}>none</option>
+      <option value="404-page" ${state.assets_not_found_handling === '404-page' ? 'selected' : ''}>404-page</option>
+      <option value="single-page-application" ${state.assets_not_found_handling === 'single-page-application' ? 'selected' : ''}>single-page-application</option>
+    </select></div>
+    <div class="row-check"><input type="checkbox" id="assets_run_worker_first" data-k="assets_run_worker_first" ${state.assets_run_worker_first ? 'checked' : ''}><label for="assets_run_worker_first">常にWorkerスクリプトを先に実行する</label></div>
+  </section>`;
+    }
+
+    function advancedFieldsHTML() {
+      return `
+  <details class="block" id="advanced" ${state.advanced_open ? 'open' : ''}>
+    <summary class="with-tip">詳細設定${tipBtn('logs')}</summary>
+    <div class="row-check"><input type="checkbox" id="logs_config" data-k="logs_config" ${state.logs_config ? 'checked' : ''}><label for="logs_config">Workers Logs設定を出力する</label></div>
+    <div id="logs_fields" ${state.logs_config ? '' : 'hidden'}>
+      <div class="row-check"><input type="checkbox" id="logs_invocation_logs" data-k="logs_invocation_logs" ${state.logs_invocation_logs ? 'checked' : ''}><label for="logs_invocation_logs">Invocation Logsを有効にする</label></div>
+      <div class="field"><label for="logs_head_sampling_rate">head_sampling_rate（0〜1、任意）</label><input id="logs_head_sampling_rate" type="number" data-k="logs_head_sampling_rate" min="0" max="1" step="0.01" value="${esc(state.logs_head_sampling_rate)}" placeholder="1"></div>
+    </div>
+  </details>`;
+    }
+
     function renderForm() {
       const el = document.getElementById('form');
-      el.innerHTML = baseFieldsHTML() + Object.entries(lists).map(([k, c]) => listHTML(k, c)).join('');
+      const advanced = document.getElementById('advanced');
+      if (advanced) state.advanced_open = advanced.open;
+      el.innerHTML = baseFieldsHTML() + assetsFieldsHTML() + Object.entries(lists).map(([k, c]) => listHTML(k, c)).join('') + advancedFieldsHTML();
     }
 
     function buildConfig() {
@@ -442,6 +512,20 @@
         account_id: state.account_id || undefined,
         workers_dev: state.workers_dev,
       };
+      const assets = {};
+      if (state.assets_directory) assets.directory = state.assets_directory;
+      if (state.assets_binding) assets.binding = state.assets_binding;
+      if (state.assets_not_found_handling) assets.not_found_handling = state.assets_not_found_handling;
+      if (state.assets_run_worker_first) assets.run_worker_first = true;
+      if (Object.keys(assets).length) cfg.assets = assets;
+      if (state.logs_config) {
+        const observability = { enabled: true, logs: { invocation_logs: state.logs_invocation_logs } };
+        if (state.logs_head_sampling_rate !== '') {
+          const rate = Number(state.logs_head_sampling_rate);
+          if (Number.isFinite(rate) && rate >= 0 && rate <= 1) observability.head_sampling_rate = rate;
+        }
+        cfg.observability = observability;
+      }
       const routes = lists.routes.rows.filter(r => r.pattern).map(r => {
         const o = { pattern: r.pattern }; if (r.zone_name) o.zone_name = r.zone_name; return o;
       });
@@ -463,6 +547,7 @@
 
     function tv(v) {
       if (typeof v === 'boolean') return String(v);
+      if (typeof v === 'number') return String(v);
       return `"${String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
     }
     function toTOML(cfg) {
@@ -476,6 +561,19 @@
       (cfg.d1_databases || []).forEach(r => { L.push(''); L.push('[[d1_databases]]'); L.push(`binding = ${tv(r.binding)}`); L.push(`database_name = ${tv(r.database_name)}`); L.push(`database_id = ${tv(r.database_id)}`); });
       (cfg.r2_buckets || []).forEach(r => { L.push(''); L.push('[[r2_buckets]]'); L.push(`binding = ${tv(r.binding)}`); L.push(`bucket_name = ${tv(r.bucket_name)}`); });
       if (cfg.triggers) { L.push(''); L.push('[triggers]'); L.push(`crons = [${cfg.triggers.crons.map(tv).join(', ')}]`); }
+      if (cfg.assets) {
+        L.push(''); L.push('[assets]');
+        ['directory', 'binding', 'not_found_handling', 'run_worker_first'].forEach(k => { if (cfg.assets[k] !== undefined) L.push(`${k} = ${tv(cfg.assets[k])}`); });
+      }
+      if (cfg.observability) {
+        L.push(''); L.push('[observability]');
+        L.push(`enabled = ${tv(cfg.observability.enabled)}`);
+        if (cfg.observability.head_sampling_rate !== undefined) L.push(`head_sampling_rate = ${tv(cfg.observability.head_sampling_rate)}`);
+        if (cfg.observability.logs) {
+          L.push(''); L.push('[observability.logs]');
+          L.push(`invocation_logs = ${tv(cfg.observability.logs.invocation_logs)}`);
+        }
+      }
       return L.join('\n');
     }
 
@@ -490,6 +588,7 @@
       const t = e.target;
       if (t.dataset.k) {
         state[t.dataset.k] = t.type === 'checkbox' ? t.checked : t.value;
+        if (t.dataset.k === 'logs_config') document.getElementById('logs_fields').hidden = !t.checked;
         renderOutput(); return;
       }
       if (t.id === 'workers_dev') { state.workers_dev = t.checked; renderOutput(); return; }
@@ -506,6 +605,9 @@
       const rm = e.target.dataset.rm;
       if (rm) { const [key, i] = rm.split(':'); lists[key].rows.splice(+i, 1); renderForm(); renderOutput(); }
     });
+    document.getElementById('form').addEventListener('toggle', e => {
+      if (e.target.id === 'advanced') state.advanced_open = e.target.open;
+    }, true);
     document.body.addEventListener('click', e => {
       const tip = e.target.closest('.tip');
       document.querySelectorAll('.tip.show').forEach(t => { if (t !== tip) t.classList.remove('show'); });
