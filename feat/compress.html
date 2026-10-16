@@ -1,0 +1,1290 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset=utf8>
+    <meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <style>
+        :root {
+            color-scheme: light;
+            box-sizing: border-box;
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-bottom: env(safe-area-inset-bottom, 0px)
+        }
+
+        html {
+            scroll-padding-top: env(safe-area-inset-top, 0px)
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font: 14px -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #fff;
+            color: #000
+        }
+
+        img {
+            max-width: 100%
+        }
+
+        [hidden]:not([hidden=until-found i]) {
+            display: none !important
+        }
+    </style>
+</head>
+
+<body>
+    <title>画像圧縮ツール</title>
+    <meta name="claude:viewport-fit-sides" content="cover">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+    <style>
+        /* Layout: 左に設定パネル(固定)、右にドロップ領域と結果リスト。狭い画面では縦に積む。 */
+        :root {
+            --bg: #eef1f0;
+            --panel: #fbfcfb;
+            --ink: #14201d;
+            --muted: #5b6b66;
+            --line: #d3dbd8;
+            --soft: #e4eae8;
+            --accent: #2450d6;
+            --accent-ink: #ffffff;
+            --good: #1d7448;
+            --warn: #9a5400;
+            --bad: #b3261e;
+            --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Meiryo", system-ui, sans-serif;
+            --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --bg: #0f1514;
+                --panel: #172120;
+                --ink: #e6eeeb;
+                --muted: #93a49e;
+                --line: #2a3834;
+                --soft: #1e2b28;
+                --accent: #86a3ff;
+                --accent-ink: #0b1230;
+                --good: #62d49c;
+                --warn: #f0b35a;
+                --bad: #ff8f86;
+                color-scheme: dark;
+            }
+        }
+
+        :root[data-theme="dark"] {
+            --bg: #0f1514;
+            --panel: #172120;
+            --ink: #e6eeeb;
+            --muted: #93a49e;
+            --line: #2a3834;
+            --soft: #1e2b28;
+            --accent: #86a3ff;
+            --accent-ink: #0b1230;
+            --good: #62d49c;
+            --warn: #f0b35a;
+            --bad: #ff8f86;
+            color-scheme: dark;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--ink);
+            font-family: var(--font-body);
+            font-size: 15px;
+            line-height: 1.6;
+            padding-block: 28px 40px;
+            padding-left: max(16px, env(safe-area-inset-left, 0px));
+            padding-right: max(16px, env(safe-area-inset-right, 0px));
+        }
+
+        .wrap {
+            max-width: 1040px;
+            margin: 0 auto;
+            display: grid;
+            gap: 20px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-wrap: balance;
+        }
+
+        header p {
+            margin: 2px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .app {
+            display: grid;
+            grid-template-columns: 300px minmax(0, 1fr);
+            gap: 20px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 18px;
+            display: grid;
+            gap: 20px;
+        }
+
+        .settings {
+            position: sticky;
+            top: 16px;
+        }
+
+        .field {
+            display: grid;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .label {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .label .val {
+            font-family: var(--font-mono);
+            font-size: 15px;
+            font-weight: 500;
+            letter-spacing: 0;
+            color: var(--ink);
+        }
+
+        .hint {
+            margin: 0;
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        .hint.warn {
+            color: var(--warn);
+        }
+
+        .seg {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+        }
+
+        .opt {
+            position: relative;
+            display: block;
+        }
+
+        .opt input {
+            position: absolute;
+            opacity: 0;
+            inset: 0;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .opt span {
+            display: block;
+            padding: 9px 8px;
+            text-align: center;
+            font-size: 14px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: var(--panel);
+            cursor: pointer;
+        }
+
+        .opt input:checked+span {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--accent-ink);
+            font-weight: 700;
+        }
+
+        .opt input:focus-visible+span {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+            margin: 4px 0;
+        }
+
+        input[type="range"]:disabled {
+            opacity: 0.4;
+        }
+
+        .presets {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 6px;
+        }
+
+        .chip {
+            font: inherit;
+            font-size: 13px;
+            padding: 6px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid var(--line);
+            background: var(--soft);
+            color: var(--ink);
+        }
+
+        .chip:hover:not(:disabled) {
+            border-color: var(--accent);
+        }
+
+        .chip[aria-pressed="true"] {
+            border-color: var(--accent);
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .chip:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        select {
+            font: inherit;
+            width: 100%;
+            padding: 9px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--line);
+            background: var(--panel);
+            color: var(--ink);
+        }
+
+        button:focus-visible,
+        select:focus-visible,
+        input[type="range"]:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        .main {
+            display: grid;
+            gap: 16px;
+            min-width: 0;
+        }
+
+        /* 画像がまだ無いときは、ドロップ領域だけを見せる */
+        .app:not(.has-items) {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .app:not(.has-items) .settings,
+        .app:not(.has-items) #results {
+            display: none;
+        }
+
+        .app:not(.has-items) .drop {
+            padding: 72px 16px;
+        }
+
+        .app:not(.has-items) .drop strong {
+            font-size: 19px;
+        }
+
+        .drop {
+            position: relative;
+            display: grid;
+            gap: 2px;
+            justify-items: center;
+            text-align: center;
+            padding: 26px 16px;
+            border: 2px dashed var(--line);
+            border-radius: 10px;
+            background: var(--panel);
+            cursor: pointer;
+        }
+
+        .drop:hover,
+        .drop.over {
+            border-color: var(--accent);
+            background: var(--soft);
+        }
+
+        .drop:focus-within {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        .drop input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+        }
+
+        .drop strong {
+            font-size: 16px;
+        }
+
+        .drop small {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .results {
+            display: grid;
+            gap: 0;
+            min-width: 0;
+            padding: 0;
+            gap: 0;
+        }
+
+        .list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .item {
+            display: grid;
+            grid-template-columns: 64px minmax(0, 1fr) auto;
+            gap: 14px;
+            align-items: center;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .thumb {
+            width: 64px;
+            height: 64px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: var(--soft);
+            border: 1px solid var(--line);
+            background-image: linear-gradient(45deg, var(--line) 25%, transparent 25%, transparent 75%, var(--line) 75%),
+                linear-gradient(45deg, var(--line) 25%, transparent 25%, transparent 75%, var(--line) 75%);
+            background-size: 12px 12px;
+            background-position: 0 0, 6px 6px;
+        }
+
+        .thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .info {
+            min-width: 0;
+            display: grid;
+            gap: 2px;
+        }
+
+        .name {
+            font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .tag {
+            font-size: 11px;
+            font-weight: 500;
+            padding: 1px 6px;
+            border-radius: 4px;
+            margin-left: 6px;
+            background: var(--soft);
+            color: var(--muted);
+            border: 1px solid var(--line);
+            vertical-align: 1px;
+        }
+
+        .sizes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2px 8px;
+            align-items: baseline;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .sizes .out {
+            color: var(--ink);
+        }
+
+        .note {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .note.warn {
+            color: var(--warn);
+        }
+
+        .note.bad {
+            color: var(--bad);
+        }
+
+        .act {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .delta {
+            font-family: var(--font-mono);
+            font-size: 16px;
+            font-weight: 500;
+            min-width: 4.5em;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .delta.good {
+            color: var(--good);
+        }
+
+        .delta.warn {
+            color: var(--warn);
+        }
+
+        .btn {
+            font: inherit;
+            font-size: 14px;
+            font-weight: 700;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid var(--accent);
+            background: var(--accent);
+            color: var(--accent-ink);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn.ghost {
+            background: transparent;
+            color: var(--ink);
+            border-color: var(--line);
+            font-weight: 500;
+        }
+
+        .btn.ghost:hover:not(:disabled) {
+            border-color: var(--accent);
+        }
+
+        .x {
+            font: inherit;
+            width: 30px;
+            height: 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            line-height: 1;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--muted);
+            font-size: 18px;
+        }
+
+        .x:hover {
+            border-color: var(--line);
+            color: var(--ink);
+        }
+
+        .empty {
+            padding: 28px 16px;
+            text-align: center;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 16px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: var(--soft);
+            border-radius: 0 0 10px 10px;
+        }
+
+        .summary .total {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .summary .total b {
+            color: var(--good);
+            font-weight: 500;
+        }
+
+        .summary .btns {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+            background: var(--ink);
+            color: var(--bg);
+            padding: 9px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            max-width: calc(100% - 32px);
+            z-index: 20;
+        }
+
+        @media (max-width: 820px) {
+            .app {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .settings {
+                position: static;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .item {
+                grid-template-columns: 56px minmax(0, 1fr);
+                gap: 10px 12px;
+            }
+
+            .thumb {
+                width: 56px;
+                height: 56px;
+            }
+
+            .act {
+                grid-column: 1 / -1;
+                justify-content: flex-end;
+            }
+        }
+
+        @media (prefers-reduced-motion: no-preference) {
+
+            .drop,
+            .chip,
+            .btn {
+                transition: border-color 0.15s, background-color 0.15s;
+            }
+        }
+
+        /* driver.js 1.3.5 公式CSS(配色・フォントをテーマのトークンに差し替え済み) */
+        .driver-active .driver-overlay,
+        .driver-active * {
+            pointer-events: none
+        }
+
+        .driver-active .driver-active-element,
+        .driver-active .driver-active-element *,
+        .driver-popover,
+        .driver-popover * {
+            pointer-events: auto
+        }
+
+        @keyframes animate-fade-in {
+            0% {
+                opacity: 0
+            }
+
+            to {
+                opacity: 1
+            }
+        }
+
+        .driver-fade .driver-overlay {
+            animation: animate-fade-in .2s ease-in-out
+        }
+
+        .driver-fade .driver-popover {
+            animation: animate-fade-in .2s
+        }
+
+        .driver-popover {
+            all: unset;
+            box-sizing: border-box;
+            color: var(--ink);
+            margin: 0;
+            padding: 15px;
+            border-radius: 5px;
+            min-width: 250px;
+            max-width: 300px;
+            box-shadow: 0 1px 10px #0006;
+            z-index: 1000000000;
+            position: fixed;
+            top: 0;
+            right: 0;
+            background-color: var(--panel)
+        }
+
+        .driver-popover * {
+            font-family: var(--font-body)
+        }
+
+        .driver-popover-title {
+            font: 19px/normal sans-serif;
+            font-weight: 700;
+            display: block;
+            position: relative;
+            line-height: 1.5;
+            zoom: 1;
+            margin: 0
+        }
+
+        .driver-popover-close-btn {
+            all: unset;
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 32px;
+            height: 28px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--muted);
+            z-index: 1;
+            text-align: center;
+            transition: color;
+            transition-duration: .2s
+        }
+
+        .driver-popover-close-btn:hover,
+        .driver-popover-close-btn:focus {
+            color: var(--ink)
+        }
+
+        .driver-popover-title[style*=block]+.driver-popover-description {
+            margin-top: 5px
+        }
+
+        .driver-popover-description {
+            margin-bottom: 0;
+            font: 14px/normal sans-serif;
+            line-height: 1.5;
+            font-weight: 400;
+            zoom: 1
+        }
+
+        .driver-popover-footer {
+            margin-top: 15px;
+            text-align: right;
+            zoom: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between
+        }
+
+        .driver-popover-progress-text {
+            font-size: 13px;
+            font-weight: 400;
+            color: var(--muted);
+            zoom: 1
+        }
+
+        .driver-popover-footer button {
+            all: unset;
+            display: inline-block;
+            box-sizing: border-box;
+            padding: 3px 7px;
+            text-decoration: none;
+            text-shadow: 1px 1px 0 var(--panel);
+            background-color: var(--panel);
+            color: var(--ink);
+            font: 12px/normal sans-serif;
+            cursor: pointer;
+            outline: 0;
+            zoom: 1;
+            line-height: 1.3;
+            border: 1px solid var(--line);
+            border-radius: 3px
+        }
+
+        .driver-popover-footer .driver-popover-btn-disabled {
+            opacity: .5;
+            pointer-events: none
+        }
+
+        :not(body):has(>.driver-active-element) {
+            overflow: hidden !important
+        }
+
+        .driver-no-interaction,
+        .driver-no-interaction * {
+            pointer-events: none !important
+        }
+
+        .driver-popover-footer button:hover,
+        .driver-popover-footer button:focus {
+            background-color: var(--soft)
+        }
+
+        .driver-popover-navigation-btns {
+            display: flex;
+            flex-grow: 1;
+            justify-content: flex-end
+        }
+
+        .driver-popover-navigation-btns button+button {
+            margin-left: 4px
+        }
+
+        .driver-popover-arrow {
+            content: "";
+            position: absolute;
+            border: 5px solid var(--panel)
+        }
+
+        .driver-popover-arrow-side-over {
+            display: none
+        }
+
+        .driver-popover-arrow-side-left {
+            left: 100%;
+            border-right-color: transparent;
+            border-bottom-color: transparent;
+            border-top-color: transparent
+        }
+
+        .driver-popover-arrow-side-right {
+            right: 100%;
+            border-left-color: transparent;
+            border-bottom-color: transparent;
+            border-top-color: transparent
+        }
+
+        .driver-popover-arrow-side-top {
+            top: 100%;
+            border-right-color: transparent;
+            border-bottom-color: transparent;
+            border-left-color: transparent
+        }
+
+        .driver-popover-arrow-side-bottom {
+            bottom: 100%;
+            border-left-color: transparent;
+            border-top-color: transparent;
+            border-right-color: transparent
+        }
+
+        .driver-popover-arrow-side-center {
+            display: none
+        }
+
+        .driver-popover-arrow-side-left.driver-popover-arrow-align-start,
+        .driver-popover-arrow-side-right.driver-popover-arrow-align-start {
+            top: 15px
+        }
+
+        .driver-popover-arrow-side-top.driver-popover-arrow-align-start,
+        .driver-popover-arrow-side-bottom.driver-popover-arrow-align-start {
+            left: 15px
+        }
+
+        .driver-popover-arrow-align-end.driver-popover-arrow-side-left,
+        .driver-popover-arrow-align-end.driver-popover-arrow-side-right {
+            bottom: 15px
+        }
+
+        .driver-popover-arrow-side-top.driver-popover-arrow-align-end,
+        .driver-popover-arrow-side-bottom.driver-popover-arrow-align-end {
+            right: 15px
+        }
+
+        .driver-popover-arrow-side-left.driver-popover-arrow-align-center,
+        .driver-popover-arrow-side-right.driver-popover-arrow-align-center {
+            top: 50%;
+            margin-top: -5px
+        }
+
+        .driver-popover-arrow-side-top.driver-popover-arrow-align-center,
+        .driver-popover-arrow-side-bottom.driver-popover-arrow-align-center {
+            left: 50%;
+            margin-left: -5px
+        }
+
+        .driver-popover-arrow-none {
+            display: none
+        }
+
+        .driver-popover {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            max-width: min(320px, calc(100vw - 32px));
+            box-shadow: 0 8px 28px #0000004d
+        }
+
+        .driver-popover .driver-popover-title,
+        .driver-popover .driver-popover-description,
+        .driver-popover .driver-popover-progress-text,
+        .driver-popover .driver-popover-footer button {
+            font-family: var(--font-body)
+        }
+
+        .driver-popover .driver-popover-title {
+            font-size: 16px;
+            font-weight: 700;
+            padding-right: 24px
+        }
+
+        .driver-popover .driver-popover-description {
+            font-size: 14px;
+            line-height: 1.65;
+            color: var(--ink)
+        }
+
+        .driver-popover .driver-popover-footer button {
+            text-shadow: none;
+            font-size: 13px;
+            padding: 6px 12px;
+            border-radius: 6px
+        }
+
+        .driver-popover .driver-popover-footer .driver-popover-next-btn {
+            background-color: var(--accent);
+            border-color: var(--accent);
+            color: var(--accent-ink);
+            font-weight: 700
+        }
+
+        .driver-popover .driver-popover-footer .driver-popover-next-btn:hover,
+        .driver-popover .driver-popover-footer .driver-popover-next-btn:focus {
+            background-color: var(--accent);
+            filter: brightness(1.1)
+        }
+
+        .driver-popover .driver-popover-footer button:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px
+        }
+
+        .driver-popover .driver-popover-progress-text {
+            font-family: var(--font-mono);
+            font-size: 12px
+        }
+
+        .head {
+            display: flex;
+            gap: 12px 20px;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap
+        }
+    </style>
+
+    <div class="wrap">
+        <header class="head">
+            <div>
+                <h1>画像圧縮ツール</h1>
+                <p>PNG・JPEG・WebPを小さくしたり、形式を変換できます。画像はこの端末の中で処理され、外には送信されません。</p>
+            </div>
+        </header>
+
+        <div class="app" id="app">
+            <aside class="panel settings" aria-label="変換設定">
+                <div class="field" id="fieldFmt">
+                    <div class="label"><span>出力形式</span></div>
+                    <div class="seg" role="radiogroup" aria-label="出力形式">
+                        <label class="opt"><input type="radio" name="fmt" value="keep"><span>元の形式</span></label>
+                        <label class="opt"><input type="radio" name="fmt" value="webp" checked><span>WebP</span></label>
+                        <label class="opt"><input type="radio" name="fmt" value="jpeg"><span>JPEG</span></label>
+                        <label class="opt"><input type="radio" name="fmt" value="png"><span>PNG</span></label>
+                    </div>
+                </div>
+
+                <div class="field" id="fieldRatio">
+                    <div class="label"><label for="ratio">圧縮率</label><span class="val" id="ratioVal">25%</span></div>
+                    <input type="range" id="ratio" min="5" max="90" step="5" value="25">
+                    <div class="presets" role="group" aria-label="圧縮率のプリセット">
+                        <button type="button" class="chip" data-ratio="10">弱め</button>
+                        <button type="button" class="chip" data-ratio="25">標準</button>
+                        <button type="button" class="chip" data-ratio="50">強め</button>
+                        <button type="button" class="chip" data-ratio="70">最大</button>
+                    </div>
+                    <p class="hint" id="ratioHint">画質 75 で書き出します。数値を上げるほどファイルは軽くなり、画質は下がります。</p>
+                </div>
+
+                <div class="field" id="fieldMax">
+                    <div class="label"><label for="max">サイズ上限(長辺)</label></div>
+                    <select id="max">
+                        <option value="0">変更しない</option>
+                        <option value="3840">3840 px(4K)</option>
+                        <option value="2560">2560 px</option>
+                        <option value="1920">1920 px(フルHD)</option>
+                        <option value="1280">1280 px</option>
+                        <option value="800">800 px</option>
+                    </select>
+                    <p class="hint">指定より大きい画像だけ、縦横比を保って縮小します。</p>
+                </div>
+            </aside>
+
+            <section class="main">
+                <label class="drop" id="drop">
+                    <input type="file" id="file" accept="image/png,image/jpeg,image/webp" multiple>
+                    <strong>画像をここにドロップ</strong>
+                    <small>クリックして選択、または貼り付け(Ctrl/⌘+V)。PNG・JPEG・WebP、複数可</small>
+                </label>
+
+                <div class="panel results" id="results">
+                    <ul class="list" id="list" aria-live="polite"></ul>
+                    <div class="summary" id="summary" hidden>
+                        <div class="total" id="total"></div>
+                        <div class="btns">
+                            <button type="button" class="btn ghost" id="clear">すべて削除</button>
+                            <button type="button" class="btn" id="zip">すべてZIPで保存</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+    <div class="toast" id="toast" role="status" hidden></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.js.iife.js"></script>
+    <script>
+        (() => {
+            const $ = (id) => document.getElementById(id);
+            const LABEL = { "image/png": "PNG", "image/jpeg": "JPEG", "image/webp": "WebP" };
+            const EXT = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+            const state = { items: [], fmt: "webp", ratio: 25, max: 0 };
+            let nextId = 1;
+            let runId = 0;
+            let downloads = null;
+
+            const list = $("list"), appEl = $("app"), summary = $("summary"), totalEl = $("total");
+
+            function esc(s) {
+                return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+            }
+            function fmtBytes(n) {
+                if (n < 1024) return n + " B";
+                if (n < 1048576) return (n / 1024).toFixed(n < 10240 ? 1 : 0) + " KB";
+                return (n / 1048576).toFixed(2) + " MB";
+            }
+            let toastTimer;
+            function toast(msg) {
+                const t = $("toast");
+                t.textContent = msg;
+                t.hidden = false;
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => { t.hidden = true; }, 2800);
+            }
+
+            function targetMime(it) {
+                return state.fmt === "keep" ? it.type : "image/" + state.fmt;
+            }
+            function settingsKey(it) {
+                return [targetMime(it), state.ratio, state.max].join("|");
+            }
+            function outName(it, mime) {
+                const base = it.name.replace(/\.[^.]+$/, "") || "image";
+                return base + "-min." + EXT[mime];
+            }
+
+            async function processItem(it) {
+                const mime = targetMime(it);
+                const key = settingsKey(it);
+                if (it.result && it.result.key === key) return;
+                let w = it.w, h = it.h;
+                if (state.max && Math.max(w, h) > state.max) {
+                    const s = state.max / Math.max(w, h);
+                    w = Math.max(1, Math.round(w * s));
+                    h = Math.max(1, Math.round(h * s));
+                }
+                const c = document.createElement("canvas");
+                c.width = w; c.height = h;
+                const g = c.getContext("2d");
+                if (mime === "image/jpeg") { g.fillStyle = "#ffffff"; g.fillRect(0, 0, w, h); }
+                g.imageSmoothingQuality = "high";
+                g.drawImage(it.bitmap, 0, 0, w, h);
+                const q = (100 - state.ratio) / 100;
+                const blob = await new Promise((res) => c.toBlob(res, mime, q));
+                if (!blob) throw new Error("書き出しに失敗しました。");
+                if (blob.type !== mime) throw new Error("このブラウザは " + LABEL[mime] + " の書き出しに対応していません。別の形式を選んでください。");
+                it.result = { blob, mime, w, h, key };
+                it.status = "ready";
+                it.error = "";
+            }
+
+            async function processAll() {
+                const my = ++runId;
+                for (const it of [...state.items]) {
+                    if (my !== runId) return;
+                    if (!state.items.includes(it) || it.status === "error" && !it.bitmap) continue;
+                    if (!it.result || it.result.key !== settingsKey(it)) { it.status = "working"; renderItem(it); }
+                    try { await processItem(it); }
+                    catch (e) { it.status = "error"; it.result = null; it.error = e.message || "変換に失敗しました。"; }
+                    if (my !== runId) return;
+                    renderItem(it);
+                    await new Promise((r) => setTimeout(r, 0));
+                }
+                renderSummary();
+                document.dispatchEvent(new Event("gazo:processed"));
+            }
+
+            function renderItem(it) {
+                let li = list.querySelector('[data-id="' + it.id + '"]');
+                if (!li) {
+                    li = document.createElement("li");
+                    li.dataset.id = it.id;
+                    list.appendChild(li);
+                }
+                li.className = "item";
+                const r = it.result;
+                const mime = targetMime(it);
+                const before = LABEL[it.type] + " · " + it.w + "×" + it.h + " · " + fmtBytes(it.file.size);
+                let after = "", delta = "", deltaCls = "", note = "", noteCls = "";
+                if (it.status === "working") {
+                    after = "変換中…";
+                } else if (it.status === "error") {
+                    after = "";
+                    note = it.error; noteCls = "bad";
+                } else if (r) {
+                    after = LABEL[r.mime] + " · " + r.w + "×" + r.h + " · " + fmtBytes(r.blob.size);
+                    const pct = Math.round((1 - r.blob.size / it.file.size) * 100);
+                    if (pct >= 0) { delta = "−" + pct + "%"; deltaCls = "good"; }
+                    else { delta = "+" + Math.abs(pct) + "%"; deltaCls = "warn"; }
+                    if (r.blob.size > it.file.size) { note = "元のファイルより大きくなりました。形式を変えるか、サイズ上限を試してください。"; noteCls = "warn"; }
+                    else if (r.mime === "image/png") { note = "PNGは劣化のない形式のため、圧縮率は適用されません。"; }
+                    else if (r.mime === "image/jpeg" && it.type !== "image/jpeg") { note = "透明な部分は白で塗りつぶされます。"; }
+                }
+                const ready = it.status === "ready";
+                li.innerHTML =
+                    '<div class="thumb"><img alt="" src="' + it.srcUrl + '"></div>' +
+                    '<div class="info">' +
+                    '<div class="name" title="' + esc(it.name) + '">' + esc(it.name) + (it.sample ? '<span class="tag">サンプル</span>' : "") + "</div>" +
+                    '<div class="sizes"><span>' + esc(before) + "</span>" +
+                    (after ? '<span aria-hidden="true">→</span><span class="out">' + esc(after) + "</span>" : "") + "</div>" +
+                    (note ? '<div class="note ' + noteCls + '">' + esc(note) + "</div>" : "") +
+                    "</div>" +
+                    '<div class="act">' +
+                    '<span class="delta ' + deltaCls + '">' + delta + "</span>" +
+                    '<button type="button" class="btn" data-act="save"' + (ready && downloads ? "" : " disabled") + ">保存</button>" +
+                    '<button type="button" class="x" data-act="remove" aria-label="' + esc(it.name) + ' を削除">×</button>' +
+                    "</div>";
+            }
+
+            function renderSummary() {
+                const has = state.items.length > 0;
+                appEl.classList.toggle("has-items", has);
+                summary.hidden = !has;
+                if (!has) return;
+                const done = state.items.filter((i) => i.status === "ready" && i.result);
+                const from = done.reduce((a, i) => a + i.file.size, 0);
+                const to = done.reduce((a, i) => a + i.result.blob.size, 0);
+                const pct = from ? Math.round((1 - to / from) * 100) : 0;
+                totalEl.innerHTML = state.items.length + "枚 · " + fmtBytes(from) + " → " + fmtBytes(to) +
+                    (done.length ? ' <b>(' + (pct >= 0 ? "−" + pct : "+" + Math.abs(pct)) + "%)</b>" : "");
+                $("zip").disabled = !(done.length >= 2 && downloads);
+            }
+
+            async function addFiles(files, opts) {
+                const accepted = [...files].filter((f) => LABEL[f.type]);
+                if (!accepted.length) { toast("PNG・JPEG・WebPの画像を選んでください。"); return; }
+                for (const f of accepted) {
+                    const it = {
+                        id: nextId++, file: f, name: f.name || "image", type: f.type, srcUrl: URL.createObjectURL(f),
+                        bitmap: null, w: 0, h: 0, status: "working", result: null, error: "", sample: !!(opts && opts.sample),
+                    };
+                    try {
+                        it.bitmap = await createImageBitmap(f);
+                        it.w = it.bitmap.width; it.h = it.bitmap.height;
+                    } catch (e) {
+                        it.status = "error"; it.error = "画像を読み込めませんでした。ファイルが壊れている可能性があります。";
+                    }
+                    state.items.push(it);
+                    renderItem(it);
+                }
+                renderSummary();
+                processAll();
+            }
+
+            function removeItem(id) {
+                const i = state.items.findIndex((x) => x.id === id);
+                if (i < 0) return;
+                const it = state.items[i];
+                state.items.splice(i, 1);
+                URL.revokeObjectURL(it.srcUrl);
+                if (it.bitmap && it.bitmap.close) it.bitmap.close();
+                const li = list.querySelector('[data-id="' + id + '"]');
+                if (li) li.remove();
+                renderSummary();
+            }
+
+            async function saveBlob(filename, blob) {
+                if (!downloads) { toast("この画面では保存できません。"); return; }
+                try {
+                    await downloads.save({ filename, data: blob });
+                    toast("保存しました。");
+                } catch (e) {
+                    if (e && e.code === "declined") return;
+                    if (e && e.code === "rate_limited") { toast("少し待ってからもう一度押してください。"); return; }
+                    toast("保存できませんでした。");
+                }
+            }
+
+            async function saveZip() {
+                const done = state.items.filter((i) => i.status === "ready" && i.result);
+                if (!done.length) return;
+                if (typeof JSZip === "undefined") { toast("ZIPを作成できませんでした。1枚ずつ保存してください。"); return; }
+                const zip = new JSZip();
+                const used = new Set();
+                for (const it of done) {
+                    let n = outName(it, it.result.mime), k = 2;
+                    while (used.has(n)) { n = outName(it, it.result.mime).replace(/(\.[^.]+)$/, "-" + k++ + "$1"); }
+                    used.add(n);
+                    zip.file(n, it.result.blob);
+                }
+                const blob = await zip.generateAsync({ type: "blob", compression: "STORE" });
+                saveBlob("images-min.zip", blob);
+            }
+
+            /* 設定 */
+            function syncControls() {
+                const png = state.fmt === "png";
+                $("ratioVal").textContent = state.ratio + "%";
+                $("ratio").value = state.ratio;
+                $("ratio").disabled = png;
+                document.querySelectorAll(".chip").forEach((c) => {
+                    c.setAttribute("aria-pressed", String(Number(c.dataset.ratio) === state.ratio));
+                    c.disabled = png;
+                });
+                const hint = $("ratioHint");
+                if (png) {
+                    hint.textContent = "PNGは劣化のない形式なので、圧縮率は効きません。小さくしたいときはWebP・JPEGか、サイズ上限を使ってください。";
+                    hint.className = "hint warn";
+                } else {
+                    hint.textContent = "画質 " + (100 - state.ratio) + " で書き出します。数値を上げるほどファイルは軽くなり、画質は下がります。";
+                    hint.className = "hint";
+                }
+            }
+            let debounce;
+            function changed(immediate) {
+                syncControls();
+                clearTimeout(debounce);
+                debounce = setTimeout(processAll, immediate ? 0 : 150);
+            }
+
+            document.querySelectorAll('input[name="fmt"]').forEach((r) =>
+                r.addEventListener("change", () => { state.fmt = r.value; changed(true); }));
+            $("ratio").addEventListener("input", (e) => { state.ratio = Number(e.target.value); changed(false); });
+            document.querySelectorAll(".chip").forEach((c) =>
+                c.addEventListener("click", () => { state.ratio = Number(c.dataset.ratio); changed(true); }));
+            $("max").addEventListener("change", (e) => { state.max = Number(e.target.value); changed(true); });
+
+            /* 画像の追加 */
+            $("file").addEventListener("change", (e) => { addFiles(e.target.files); e.target.value = ""; });
+            const drop = $("drop");
+            ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+            ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+            drop.addEventListener("drop", (e) => { if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+            window.addEventListener("dragover", (e) => e.preventDefault());
+            window.addEventListener("drop", (e) => { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files.length && !drop.contains(e.target)) addFiles(e.dataTransfer.files); });
+            window.addEventListener("paste", (e) => {
+                const files = e.clipboardData ? [...e.clipboardData.files] : [];
+                if (files.length) addFiles(files);
+            });
+
+            /* 結果リスト */
+            list.addEventListener("click", (e) => {
+                const btn = e.target.closest("[data-act]");
+                if (!btn) return;
+                const id = Number(btn.closest(".item").dataset.id);
+                const it = state.items.find((x) => x.id === id);
+                if (!it) return;
+                if (btn.dataset.act === "remove") removeItem(id);
+                if (btn.dataset.act === "save" && it.result) saveBlob(outName(it, it.result.mime), it.result.blob);
+            });
+            $("zip").addEventListener("click", saveZip);
+            $("clear").addEventListener("click", () => {
+                runId++;
+                state.items.forEach((it) => { URL.revokeObjectURL(it.srcUrl); if (it.bitmap && it.bitmap.close) it.bitmap.close(); });
+                state.items = [];
+                list.innerHTML = "";
+                renderSummary();
+            });
+
+            /* 使い方ツアー(driver.js) */
+            function startTour() {
+                const make = window.driver && window.driver.js && window.driver.js.driver;
+                if (!make) { toast("ツアーを読み込めませんでした。"); return; }
+                const firstItem = () => document.querySelector("#list .item") || "#results";
+                const onProcessed = () => {
+                    if (d.isActive() && d.getActiveIndex() === 0) d.moveNext();
+                };
+                const d = make({
+                    onDestroyed: () => document.removeEventListener("gazo:processed", onProcessed),
+                    showProgress: true,
+                    animate: true,
+                    allowClose: true,
+                    stagePadding: 6,
+                    stageRadius: 8,
+                    overlayOpacity: 0.6,
+                    nextBtnText: "次へ",
+                    prevBtnText: "戻る",
+                    doneBtnText: "完了",
+                    progressText: "{{current}} / {{total}}",
+                    steps: [
+                        { element: "#drop", popover: { title: "1. 画像を追加", description: "まず画像をここにドロップしてください。クリックして選ぶことも、コピーした画像を Ctrl/⌘+V で貼り付けることもできます。画像を入れると、設定と結果が表示されます。", side: "bottom", align: "center", showButtons: ["close"] } },
+                        { element: "#fieldFmt", popover: { title: "2. 出力形式", description: "変換後の形式を選びます。迷ったらWebPが小さくなりやすくおすすめです。「元の形式」なら形式はそのままで圧縮だけ行います。", side: "right", align: "start" } },
+                        { element: "#fieldRatio", popover: { title: "3. 圧縮率", description: "数値を上げるほどファイルは軽くなり、画質は下がります。プリセットで目安を選び、スライダーで微調整できます。動かすと下の結果がすぐ更新されます。", side: "right", align: "start" } },
+                        { element: "#fieldMax", popover: { title: "4. サイズ上限", description: "長辺がこの値より大きい画像だけ、縦横比を保って縮小します。画質を落とさずに軽くしたいときに使います。", side: "right", align: "start" } },
+                        { element: firstItem, popover: { title: "5. 結果を確認", description: "追加した画像ごとに、変換前と変換後の形式・サイズ・容量が並びます。右の数字は容量の増減です。元より大きくなった場合は注意が表示されます。", side: "top", align: "center" } },
+                        { element: () => document.querySelector('#list .item [data-act="save"]') || firstItem(), popover: { title: "6. 1枚ずつ保存", description: "各行の「保存」を押すと確認が出ます。承認するとファイルが保存されます。", side: "left", align: "center" } },
+                        { element: () => ($("summary").hidden ? "#results" : "#zip"), popover: { title: "7. まとめて保存", description: "2枚以上あるときは、すべてをZIPにまとめて保存できます。不要になった画像は「すべて削除」で消せます。", side: "top", align: "end" } }
+                    ]
+                });
+                document.addEventListener("gazo:processed", onProcessed);
+                d.drive();
+            }
+
+            function isOnboarding() {
+                try {
+                    if (new URLSearchParams(location.search).get("onBoarding") === "1") return true;
+                } catch (e) { /* 続行 */ }
+                return /onboarding/i.test(location.hash);
+            }
+
+            async function init() {
+                syncControls();
+                renderSummary();
+                try {
+                    if (window.claude && window.claude.use) downloads = await window.claude.use("downloads");
+                } catch (e) { downloads = null; }
+                if (isOnboarding()) startTour();
+            }
+            init();
+        })();
+    </script>
+
+</body>
+
+</html>

@@ -1,5 +1,11 @@
 const tools = [
   {
+    href: './feat/wrangler_config.html',
+    name: 'compress',
+    path: 'compress.html',
+    description: '画象圧縮フォーマット変換'
+  },
+  {
     href: './feat/crop.html',
     name: 'crop',
     path: 'crop.html',
