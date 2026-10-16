@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Markdown Editor</title>
+<script>
+  // 初回描画前にテーマを適用（ちらつき防止）
+  try {
+    var t = localStorage.getItem('md-editor:theme');
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.css">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --subtle: #f6f8fa;
+    --hover: #f0f2f5;
+    --stripe: #fbfcfd;
+    --border: #dfe3e8;
+    --text: #1f2328;
+    --muted: #656d76;
+    --accent: #2563eb;
+    --accent-weak: #e8f0fe;
+    --code-bg: #f3f4f6;
+  }
+  /* システム設定に追従（手動でライト指定した場合を除く） */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0d1117;
+      --panel: #161b22;
+      --subtle: #1c2330;
+      --hover: #222b38;
+      --stripe: #1a212c;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #6ea8fe;
+      --accent-weak: #1b2a45;
+      --code-bg: #212a36;
+    }
+  }
+  /* 手動でダーク指定 */
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0d1117;
+    --panel: #161b22;
+    --subtle: #1c2330;
+    --hover: #222b38;
+    --stripe: #1a212c;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #6ea8fe;
+    --accent-weak: #1b2a45;
+    --code-bg: #212a36;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex; flex-direction: column;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
+  }
+
+  /* ---------- header / toolbar ---------- */
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+    padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 15px; margin: 0 8px 0 0; font-weight: 700; }
+  .group { display: flex; align-items: center; gap: 4px; }
+  .spacer { flex: 1; }
+  button {
+    font: inherit; font-size: 13px; color: var(--text);
+    background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 10px; cursor: pointer; line-height: 1.2;
+  }
+  button:hover { background: var(--hover); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+  button.primary:hover { background: #1d4ed8; }
+  .seg button { border-radius: 0; margin-left: -1px; }
+  .seg button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
+  .seg button:last-child { border-radius: 0 6px 6px 0; }
+  .seg button[aria-pressed="true"] { background: var(--accent-weak); border-color: var(--accent); color: var(--accent); position: relative; z-index: 1; }
+  #toolbar button { min-width: 30px; padding: 5px 8px; }
+  #toolbar { padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 4px; }
+
+  /* ---------- main ---------- */
+  main { flex: 1; min-height: 0; display: flex; gap: 0; }
+  .pane { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel); }
+  .pane + .pane { border-left: 1px solid var(--border); }
+  .pane-title {
+    font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+    padding: 6px 14px; border-bottom: 1px solid var(--border); background: var(--subtle);
+  }
+  #editor {
+    flex: 1; width: 100%; resize: none; border: 0; outline: 0; padding: 16px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Noto Sans Mono CJK JP", monospace;
+    font-size: 14px; line-height: 1.65; color: var(--text); background: transparent; tab-size: 2;
+  }
+  #previewScroll { flex: 1; overflow: auto; padding: 20px 28px; }
+
+  body[data-mode="edit"] #previewPane { display: none; }
+  body[data-mode="preview"] #editorPane { display: none; }
+  @media (max-width: 760px) {
+    main { flex-direction: column; }
+    .pane + .pane { border-left: 0; border-top: 1px solid var(--border); }
+  }
+
+  /* ---------- markdown body (GitHub-like) ---------- */
+  .markdown-body { max-width: 860px; margin: 0 auto; font-size: 15px; line-height: 1.75; word-wrap: break-word; }
+  .markdown-body > :first-child { margin-top: 0; }
+  .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 {
+    margin: 1.6em 0 .6em; line-height: 1.3; font-weight: 700;
+  }
+  .markdown-body h1 { font-size: 1.9em; padding-bottom: .3em; border-bottom: 1px solid var(--border); }
+  .markdown-body h2 { font-size: 1.5em; padding-bottom: .3em; border-bottom: 1px solid var(--border); }
+  .markdown-body h3 { font-size: 1.25em; }
+  .markdown-body h4 { font-size: 1.05em; }
+  .markdown-body h5, .markdown-body h6 { font-size: .95em; color: var(--muted); }
+  .markdown-body p, .markdown-body ul, .markdown-body ol, .markdown-body blockquote,
+  .markdown-body pre, .markdown-body table, .markdown-body details { margin: 0 0 1em; }
+  .markdown-body ul, .markdown-body ol { padding-left: 2em; }
+  .markdown-body li + li { margin-top: .25em; }
+  .markdown-body li > ul, .markdown-body li > ol { margin: .25em 0 0; }
+  .markdown-body ul:has(> li > input[type="checkbox"]) { list-style: none; padding-left: 1.2em; }
+  .markdown-body input[type="checkbox"] { margin: 0 .5em 0 -1.2em; vertical-align: middle; }
+  .markdown-body a { color: var(--accent); text-decoration: none; }
+  .markdown-body a:hover { text-decoration: underline; }
+  .markdown-body blockquote { padding: 0 1em; color: var(--muted); border-left: 4px solid var(--border); }
+  .markdown-body code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .88em; background: var(--code-bg); padding: .15em .4em; border-radius: 4px;
+  }
+  .markdown-body pre { background: var(--code-bg); padding: 14px 16px; border-radius: 8px; overflow: auto; line-height: 1.5; }
+  .markdown-body pre code { background: none; padding: 0; font-size: .88em; }
+  .markdown-body table { border-collapse: collapse; display: block; max-width: 100%; overflow: auto; }
+  .markdown-body th, .markdown-body td { border: 1px solid var(--border); padding: 6px 12px; }
+  .markdown-body th { background: var(--subtle); font-weight: 600; }
+  .markdown-body tr:nth-child(even) td { background: var(--stripe); }
+  .markdown-body img { max-width: 100%; }
+  .markdown-body hr { border: 0; border-top: 1px solid var(--border); margin: 1.8em 0; }
+  .markdown-body del { color: var(--muted); }
+
+  /* ---------- driver.js tweaks ---------- */
+  .driver-popover { font-family: inherit; background: var(--panel); color: var(--text); }
+  .driver-popover-title { color: var(--text); }
+  .driver-popover-description, .driver-popover-progress-text { color: var(--muted); }
+  .driver-popover-footer button {
+    background: var(--panel); color: var(--text); border: 1px solid var(--border); text-shadow: none;
+  }
+  .driver-popover-footer button:hover { background: var(--hover); }
+  .driver-popover-close-btn { color: var(--muted); }
+  .driver-popover-arrow-side-left.driver-popover-arrow { border-left-color: var(--panel); }
+  .driver-popover-arrow-side-right.driver-popover-arrow { border-right-color: var(--panel); }
+  .driver-popover-arrow-side-top.driver-popover-arrow { border-top-color: var(--panel); }
+  .driver-popover-arrow-side-bottom.driver-popover-arrow { border-bottom-color: var(--panel); }
+
+  /* ---------- print / PDF ---------- */
+  @page { margin: 16mm; }
+  @media print {
+    /* 印刷・PDFは常にライト配色 */
+    :root:root:root {
+      color-scheme: light;
+      --bg: #fff; --panel: #fff; --subtle: #f6f8fa; --hover: #f0f2f5; --stripe: #fbfcfd;
+      --border: #dfe3e8; --text: #1f2328; --muted: #656d76; --accent: #2563eb;
+      --accent-weak: #e8f0fe; --code-bg: #f3f4f6;
+    }
+    html, body { height: auto; background: #fff; }
+    body { display: block; }
+    header, #toolbar, #editorPane, .pane-title, .driver-overlay, .driver-popover { display: none !important; }
+    main { display: block; }
+    #previewPane { display: block !important; border: 0 !important; }
+    #previewScroll { overflow: visible; padding: 0; }
+    .markdown-body { max-width: none; font-size: 11pt; }
+    .markdown-body pre, .markdown-body blockquote, .markdown-body img, .markdown-body tr { break-inside: avoid; }
+    .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 { break-after: avoid; }
+    .markdown-body pre { white-space: pre-wrap; border: 1px solid var(--border); }
+    .markdown-body table { display: table; }
+    .markdown-body a { color: var(--text); text-decoration: underline; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body data-mode="split">
+
+<header>
+  <h1>📝 Markdown Editor</h1>
+  <div class="group seg" id="modeSwitch" role="group" aria-label="表示モード">
+    <button type="button" data-set-mode="edit" aria-pressed="false">編集</button>
+    <button type="button" data-set-mode="split" aria-pressed="true">分割</button>
+    <button type="button" data-set-mode="preview" aria-pressed="false">プレビュー</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="group" id="fileActions">
+    <button type="button" id="btnOpen">開く</button>
+    <button type="button" id="btnSave">.md保存</button>
+    <button type="button" id="btnPdf" class="primary">PDF化</button>
+    <button type="button" id="btnTheme" title="テーマ切替（自動 / ライト / ダーク）">🌓 自動</button>
+    <button type="button" id="btnHelp" title="使い方ツアー">？</button>
+  </div>
+  <input type="file" id="fileInput" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden>
+</header>
+
+<div id="toolbar" role="toolbar" aria-label="書式">
+  <button type="button" data-act="h1" title="見出し1">H1</button>
+  <button type="button" data-act="h2" title="見出し2">H2</button>
+  <button type="button" data-act="h3" title="見出し3">H3</button>
+  <button type="button" data-act="bold" title="太字 (Ctrl/⌘+B)"><b>B</b></button>
+  <button type="button" data-act="italic" title="斜体 (Ctrl/⌘+I)"><i>I</i></button>
+  <button type="button" data-act="strike" title="取り消し線"><s>S</s></button>
+  <button type="button" data-act="code" title="インラインコード">&lt;/&gt;</button>
+  <button type="button" data-act="codeblock" title="コードブロック">{ }</button>
+  <button type="button" data-act="link" title="リンク (Ctrl/⌘+K)">🔗</button>
+  <button type="button" data-act="quote" title="引用">❝</button>
+  <button type="button" data-act="ul" title="箇条書き">• List</button>
+  <button type="button" data-act="ol" title="番号付きリスト">1. List</button>
+  <button type="button" data-act="task" title="タスクリスト">☑ Task</button>
+  <button type="button" data-act="table" title="表">▦ Table</button>
+  <button type="button" data-act="hr" title="水平線">―</button>
+</div>
+
+<main>
+  <section class="pane" id="editorPane">
+    <div class="pane-title">Markdown</div>
+    <textarea id="editor" spellcheck="false" aria-label="Markdownエディタ" placeholder="ここにMarkdownを入力…"></textarea>
+  </section>
+  <section class="pane" id="previewPane">
+    <div class="pane-title">Preview</div>
+    <div id="previewScroll"><article id="preview" class="markdown-body"></article></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  const STORAGE_KEY = 'md-editor:content';
+  const MODE_KEY = 'md-editor:mode';
+
+  const SAMPLE = `# Markdown Editor へようこそ
+
+左で書くと、右にすぐ反映されます。**GitHub Flavored Markdown (GFM)** に対応しています。
+
+## 書式の例
+
+- **太字**、*斜体*、~~取り消し線~~、\`インラインコード\`
+- 自動リンク: https://github.github.com/gfm/
+- [通常のリンク](https://example.com)
+
+## タスクリスト
+
+- [x] エディタを開く
+- [x] プレビューを確認する
+- [ ] 「PDF化」を押して保存する
+
+## 表
+
+| 機能 | 対応 | 備考 |
+|:-----|:----:|-----:|
+| テーブル | ✅ | 左/中央/右揃え |
+| タスクリスト | ✅ | チェックボックス表示 |
+| 取り消し線 | ✅ | \`~~text~~\` |
+
+## コードブロック
+
+\`\`\`js
+const greet = (name) => \`Hello, \${name}!\`;
+console.log(greet('Markdown'));
+\`\`\`
+
+> 引用もこのとおり。
+> 複数行にも対応します。
+
+---
+
+内容はブラウザ内（localStorage）に自動保存されます。
+`;
+
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const editor = $('#editor');
+  const preview = $('#preview');
+  const previewScroll = $('#previewScroll');
+
+  /* ---------- markdown rendering ---------- */
+  marked.setOptions({ gfm: true, breaks: false });
+
+  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (node.tagName === 'A' && node.getAttribute('href')) {
+      node.setAttribute('target', '_blank');
+      node.setAttribute('rel', 'noopener noreferrer');
+    }
+    if (node.tagName === 'INPUT' && node.getAttribute('type') === 'checkbox') {
+      node.setAttribute('disabled', '');
+    }
+  });
+
+  let rafId = 0;
+  function render() {
+    const html = marked.parse(editor.value);
+    preview.innerHTML = DOMPurify.sanitize(html, { ADD_ATTR: ['target'] });
+  }
+  function scheduleRender() {
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(render);
+  }
+
+  /* ---------- persistence ---------- */
+  let saveTimer = 0;
+  function persist() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY, editor.value); } catch (e) {}
+    }, 300);
+  }
+  function load() {
+    let v = null;
+    try { v = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+    editor.value = v !== null ? v : SAMPLE;
+  }
+
+  editor.addEventListener('input', () => { scheduleRender(); persist(); });
+
+  /* ---------- view mode ---------- */
+  function setMode(mode) {
+    document.body.dataset.mode = mode;
+    $$('[data-set-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.setMode === mode)));
+    try { localStorage.setItem(MODE_KEY, mode); } catch (e) {}
+  }
+  $('#modeSwitch').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-set-mode]');
+    if (b) setMode(b.dataset.setMode);
+  });
+
+  /* ---------- theme (auto / light / dark) ---------- */
+  const THEME_KEY = 'md-editor:theme';
+  const THEMES = ['auto', 'light', 'dark'];
+  const THEME_LABEL = { auto: '🌓 自動', light: '☀️ ライト', dark: '🌙 ダーク' };
+  const btnTheme = $('#btnTheme');
+  let theme = 'auto';
+  try {
+    const t = localStorage.getItem(THEME_KEY);
+    if (THEMES.includes(t)) theme = t;
+  } catch (e) {}
+
+  function applyTheme(t) {
+    theme = t;
+    if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', t);
+    btnTheme.textContent = THEME_LABEL[t];
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) {}
+  }
+  btnTheme.addEventListener('click', () => {
+    applyTheme(THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]);
+  });
+  applyTheme(theme);
+
+  /* ---------- scroll sync (editor -> preview) ---------- */
+  editor.addEventListener('scroll', () => {
+    if (document.body.dataset.mode !== 'split') return;
+    const max = editor.scrollHeight - editor.clientHeight;
+    if (max <= 0) return;
+    previewScroll.scrollTop = (editor.scrollTop / max) * (previewScroll.scrollHeight - previewScroll.clientHeight);
+  });
+
+  /* ---------- toolbar actions ---------- */
+  function replaceSelection(text, selStart, selEnd) {
+    editor.focus();
+    // execCommand keeps the native undo stack where available
+    const ok = document.execCommand && document.execCommand('insertText', false, text);
+    if (!ok) {
+      const s = editor.selectionStart, e = editor.selectionEnd;
+      editor.setRangeText(text, s, e, 'end');
+    }
+    if (selStart != null) editor.setSelectionRange(selStart, selEnd);
+    scheduleRender(); persist();
+  }
+
+  function wrap(before, after, placeholder) {
+    const s = editor.selectionStart, e = editor.selectionEnd;
+    const sel = editor.value.slice(s, e) || placeholder;
+    const base = s + before.length;
+    replaceSelection(before + sel + after, base, base + sel.length);
+  }
+
+  function linePrefix(prefixFn) {
+    const v = editor.value;
+    let s = editor.selectionStart, e = editor.selectionEnd;
+    const ls = v.lastIndexOf('\n', s - 1) + 1;
+    let le = v.indexOf('\n', e);
+    if (le === -1) le = v.length;
+    const block = v.slice(ls, le);
+    const out = block.split('\n').map((line, i) => prefixFn(line, i)).join('\n');
+    editor.setSelectionRange(ls, le);
+    replaceSelection(out, ls, ls + out.length);
+  }
+
+  const headingPrefix = (n) => (line) => {
+    const stripped = line.replace(/^#{1,6}\s+/, '');
+    return '#'.repeat(n) + ' ' + stripped;
+  };
+
+  const actions = {
+    h1: () => linePrefix(headingPrefix(1)),
+    h2: () => linePrefix(headingPrefix(2)),
+    h3: () => linePrefix(headingPrefix(3)),
+    bold: () => wrap('**', '**', '太字'),
+    italic: () => wrap('*', '*', '斜体'),
+    strike: () => wrap('~~', '~~', '取り消し'),
+    code: () => wrap('`', '`', 'code'),
+    codeblock: () => {
+      const s = editor.selectionStart, e = editor.selectionEnd;
+      const sel = editor.value.slice(s, e) || 'code';
+      const pre = '```\n';
+      replaceSelection(pre + sel + '\n```', s + pre.length, s + pre.length + sel.length);
+    },
+    link: () => {
+      const s = editor.selectionStart, e = editor.selectionEnd;
+      const sel = editor.value.slice(s, e) || 'リンクテキスト';
+      const text = '[' + sel + '](https://)';
+      const urlStart = s + sel.length + 3;
+      replaceSelection(text, urlStart, urlStart + 8);
+    },
+    quote: () => linePrefix(l => '> ' + l),
+    ul: () => linePrefix(l => '- ' + l),
+    ol: () => linePrefix((l, i) => (i + 1) + '. ' + l),
+    task: () => linePrefix(l => '- [ ] ' + l),
+    table: () => {
+      const s = editor.selectionStart;
+      const needNl = s > 0 && editor.value[s - 1] !== '\n' ? '\n\n' : '';
+      replaceSelection(needNl + '| 見出し1 | 見出し2 | 見出し3 |\n|:--|:--:|--:|\n| セル | セル | セル |\n| セル | セル | セル |\n');
+    },
+    hr: () => {
+      const s = editor.selectionStart;
+      const needNl = s > 0 && editor.value[s - 1] !== '\n' ? '\n' : '';
+      replaceSelection(needNl + '\n---\n\n');
+    },
+  };
+
+  $('#toolbar').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]');
+    if (!b) return;
+    if (document.body.dataset.mode === 'preview') setMode('split');
+    actions[b.dataset.act]();
+  });
+
+  editor.addEventListener('keydown', (e) => {
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && !e.shiftKey && !e.altKey) {
+      const k = e.key.toLowerCase();
+      if (k === 'b') { e.preventDefault(); actions.bold(); return; }
+      if (k === 'i') { e.preventDefault(); actions.italic(); return; }
+      if (k === 'k') { e.preventDefault(); actions.link(); return; }
+    }
+    if (e.key === 'Tab' && !e.shiftKey && !mod) {
+      e.preventDefault();
+      replaceSelection('  ');
+    }
+  });
+
+  /* ---------- file open / save ---------- */
+  $('#btnOpen').addEventListener('click', () => $('#fileInput').click());
+  $('#fileInput').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    editor.value = await f.text();
+    scheduleRender(); persist();
+    e.target.value = '';
+  });
+
+  function currentTitle() {
+    const h = preview.querySelector('h1, h2, h3');
+    const t = (h ? h.textContent : '').trim();
+    return t || 'document';
+  }
+
+  $('#btnSave').addEventListener('click', () => {
+    const blob = new Blob([editor.value], { type: 'text/markdown;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = currentTitle().replace(/[\\/:*?"<>|]/g, '_') + '.md';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+
+  /* ---------- PDF (browser print) ---------- */
+  const originalTitle = document.title;
+  window.addEventListener('beforeprint', () => { document.title = currentTitle(); });
+  window.addEventListener('afterprint', () => { document.title = originalTitle; });
+  $('#btnPdf').addEventListener('click', () => {
+    render();
+    window.print();
+  });
+
+  /* ---------- onboarding tour (driver.js) ---------- */
+  const DRIVER_JS = 'https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.js.iife.js';
+  let driverLoading = null;
+  function loadDriver() {
+    if (window.driver && window.driver.js) return Promise.resolve();
+    if (driverLoading) return driverLoading;
+    driverLoading = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = DRIVER_JS;
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('driver.js の読み込みに失敗しました'));
+      document.head.appendChild(s);
+    });
+    return driverLoading;
+  }
+
+  async function startTour() {
+    try { await loadDriver(); } catch (err) { alert(err.message); return; }
+    if (document.body.dataset.mode !== 'split') setMode('split');
+    const { driver } = window.driver.js;
+    const tour = driver({
+      showProgress: true,
+      allowClose: true,
+      nextBtnText: '次へ',
+      prevBtnText: '戻る',
+      doneBtnText: '完了',
+      progressText: '{{current}} / {{total}}',
+      steps: [
+        { popover: { title: 'Markdown Editor へようこそ', description: 'マークダウンを書いて、その場でプレビューし、PDFとして保存できるシンプルなエディタです。構文は GitHub Flavored Markdown (GFM) です。' } },
+        { element: '#editor', popover: { title: 'エディタ', description: 'ここにMarkdownを入力します。内容はブラウザに自動保存されます。Tabでインデント、Ctrl/⌘+B・I・Kで太字・斜体・リンクが使えます。', side: 'right', align: 'start' } },
+        { element: '#toolbar', popover: { title: '書式ツールバー', description: '見出し・リスト・タスク・表などをワンクリックで挿入できます。選択中のテキストには書式が適用されます。', side: 'bottom', align: 'start' } },
+        { element: '#previewPane', popover: { title: 'プレビュー', description: '入力内容がリアルタイムに反映されます。表・タスクリスト・取り消し線・自動リンクなどGFMの記法に対応しています。', side: 'left', align: 'start' } },
+        { element: '#modeSwitch', popover: { title: '表示モード切替', description: '「編集」「分割」「プレビュー」を切り替えられます。スマホでは上下分割になります。', side: 'bottom' } },
+        { element: '#fileActions', popover: { title: 'ファイル操作', description: '「開く」で.mdファイルを読み込み、「.md保存」でダウンロードできます。', side: 'bottom', align: 'end' } },
+        { element: '#btnPdf', popover: { title: 'PDF化', description: '印刷ダイアログが開きます。送信先を「PDFに保存」にすると、プレビュー部分だけがPDFになります。', side: 'bottom', align: 'end' } },
+        { element: '#btnTheme', popover: { title: 'ライト / ダークモード', description: '「自動（OS設定に追従）」「ライト」「ダーク」を順に切り替えます。PDFは常にライト配色で出力されます。', side: 'bottom', align: 'end' } },
+        { element: '#btnHelp', popover: { title: 'ツアーをもう一度', description: 'このボタンでいつでもこのツアーを再表示できます。', side: 'bottom', align: 'end' } },
+      ],
+    });
+    tour.drive();
+  }
+  $('#btnHelp').addEventListener('click', startTour);
+
+  /* ---------- init ---------- */
+  load();
+  render();
+  try {
+    const m = localStorage.getItem(MODE_KEY);
+    if (m === 'edit' || m === 'split' || m === 'preview') setMode(m);
+  } catch (e) {}
+
+  const params = new URLSearchParams(location.search);
+  if (params.get('onBoarding') === '1') {
+    // 再読み込みでツアーが繰り返されないようにURLからパラメータを外す
+    params.delete('onBoarding');
+    const qs = params.toString();
+    try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash); } catch (e) {}
+    window.addEventListener('load', startTour);
+  }
+})();
+</script>
+</body>
+</html>

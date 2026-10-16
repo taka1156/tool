@@ -1,6 +1,6 @@
 const tools = [
   {
-    href: './feat/wrangler_config.html',
+    href: './feat/compress.html',
     name: 'compress',
     path: 'compress.html',
     description: '画象圧縮フォーマット変換'
@@ -10,6 +10,12 @@ const tools = [
     name: 'crop',
     path: 'crop.html',
     description: '背景透過・画像のリサイズ・フォーマット変換'
+  },
+  {
+    href: './feat/gfm_md.html',
+    name: 'markdown',
+    path: 'gfm_md.html',
+    description: 'マークダウン編集・プレビュー・PDF化'
   },
   {
     href: './feat/wrangler_config.html',
