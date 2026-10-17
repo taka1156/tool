@@ -60,7 +60,6 @@
 
 <body>
     <style>
-        /* Layout: 左に設定パネル(固定)、右にドロップ領域と結果リスト。狭い画面では縦に積む。 */
         :root {
             --bg: #eef1f0;
             --panel: #fbfcfb;
@@ -309,7 +308,6 @@
             min-width: 0;
         }
 
-        /* 画像がまだ無いときは、ドロップ領域だけを見せる */
         .app:not(.has-items) {
             grid-template-columns: minmax(0, 1fr);
         }
@@ -372,7 +370,6 @@
             gap: 0;
             min-width: 0;
             padding: 0;
-            gap: 0;
         }
 
         .list {
@@ -997,8 +994,6 @@
             const state = { items: [], fmt: "webp", ratio: 25, max: 0 };
             let nextId = 1;
             let runId = 0;
-            let downloads = null;
-
             const list = $("list"), appEl = $("app"), summary = $("summary"), totalEl = $("total");
 
             function esc(s) {
@@ -1032,7 +1027,7 @@
             async function processItem(it) {
                 const mime = targetMime(it);
                 const key = settingsKey(it);
-                if (it.result && it.result.key === key) return;
+                if (it.result && it.result.key === key) { it.status = "ready"; return; }
                 let w = it.w, h = it.h;
                 if (state.max && Math.max(w, h) > state.max) {
                     const s = state.max / Math.max(w, h);
@@ -1079,7 +1074,6 @@
                 }
                 li.className = "item";
                 const r = it.result;
-                const mime = targetMime(it);
                 const before = LABEL[it.type] + " · " + it.w + "×" + it.h + " · " + fmtBytes(it.file.size);
                 let after = "", delta = "", deltaCls = "", note = "", noteCls = "";
                 if (it.status === "working") {
@@ -1096,7 +1090,8 @@
                     else if (r.mime === "image/png") { note = "PNGは劣化のない形式のため、圧縮率は適用されません。"; }
                     else if (r.mime === "image/jpeg" && it.type !== "image/jpeg") { note = "透明な部分は白で塗りつぶされます。"; }
                 }
-                const ready = it.status === "ready";
+                // 変換が完了していれば保存できる(downloads capability の有無には依存しない)
+                const ready = it.status === "ready" && !!r;
                 li.innerHTML =
                     '<div class="thumb"><img alt="" src="' + it.srcUrl + '"></div>' +
                     '<div class="info">' +
@@ -1107,7 +1102,7 @@
                     "</div>" +
                     '<div class="act">' +
                     '<span class="delta ' + deltaCls + '">' + delta + "</span>" +
-                    '<button type="button" class="btn" data-act="save"' + (ready && downloads ? "" : " disabled") + ">保存</button>" +
+                    '<button type="button" class="btn" data-act="save"' + (ready ? "" : " disabled") + ">保存</button>" +
                     '<button type="button" class="x" data-act="remove" aria-label="' + esc(it.name) + ' を削除">×</button>' +
                     "</div>";
             }
@@ -1123,7 +1118,7 @@
                 const pct = from ? Math.round((1 - to / from) * 100) : 0;
                 totalEl.innerHTML = state.items.length + "枚 · " + fmtBytes(from) + " → " + fmtBytes(to) +
                     (done.length ? ' <b>(' + (pct >= 0 ? "−" + pct : "+" + Math.abs(pct)) + "%)</b>" : "");
-                $("zip").disabled = !(done.length >= 2 && downloads);
+                $("zip").disabled = done.length < 2;
             }
 
             async function addFiles(files, opts) {
@@ -1159,14 +1154,18 @@
                 renderSummary();
             }
 
-            async function saveBlob(filename, blob) {
-                if (!downloads) { toast("この画面では保存できません。"); return; }
+            function saveBlob(filename, blob) {
                 try {
-                    await downloads.save({ filename, data: blob });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 10000);
                     toast("保存しました。");
                 } catch (e) {
-                    if (e && e.code === "declined") return;
-                    if (e && e.code === "rate_limited") { toast("少し待ってからもう一度押してください。"); return; }
                     toast("保存できませんでした。");
                 }
             }
@@ -1278,7 +1277,7 @@
                         { element: "#fieldRatio", popover: { title: "3. 圧縮率", description: "数値を上げるほどファイルは軽くなり、画質は下がります。プリセットで目安を選び、スライダーで微調整できます。動かすと下の結果がすぐ更新されます。", side: "right", align: "start" } },
                         { element: "#fieldMax", popover: { title: "4. サイズ上限", description: "長辺がこの値より大きい画像だけ、縦横比を保って縮小します。画質を落とさずに軽くしたいときに使います。", side: "right", align: "start" } },
                         { element: firstItem, popover: { title: "5. 結果を確認", description: "追加した画像ごとに、変換前と変換後の形式・サイズ・容量が並びます。右の数字は容量の増減です。元より大きくなった場合は注意が表示されます。", side: "top", align: "center" } },
-                        { element: () => document.querySelector('#list .item [data-act="save"]') || firstItem(), popover: { title: "6. 1枚ずつ保存", description: "各行の「保存」を押すと確認が出ます。承認するとファイルが保存されます。", side: "left", align: "center" } },
+                        { element: () => document.querySelector('#list .item [data-act="save"]') || firstItem(), popover: { title: "6. 1枚ずつ保存", description: "各行の「保存」を押すと、変換後のファイルが保存されます。", side: "left", align: "center" } },
                         { element: () => ($("summary").hidden ? "#results" : "#zip"), popover: { title: "7. まとめて保存", description: "2枚以上あるときは、すべてをZIPにまとめて保存できます。不要になった画像は「すべて削除」で消せます。", side: "top", align: "end" } }
                     ]
                 });
@@ -1293,12 +1292,9 @@
                 return /onboarding/i.test(location.hash);
             }
 
-            async function init() {
+            function init() {
                 syncControls();
                 renderSummary();
-                try {
-                    if (window.claude && window.claude.use) downloads = await window.claude.use("downloads");
-                } catch (e) { downloads = null; }
                 if (isOnboarding()) startTour();
             }
             init();
