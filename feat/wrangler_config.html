@@ -453,7 +453,7 @@
       <pre id="preview"></pre>
       <div class="actions" id="outputActions">
         <button class="btn primary" id="copyBtn">コピー</button>
-        <button class="btn" id="dlBtn" style="display:none">ダウンロード</button>
+        <button class="btn" id="dlBtn">ダウンロード</button>
       </div>
     </div>
   </div>
@@ -820,20 +820,18 @@
       } catch (e) { btn.textContent = 'コピーできませんでした'; setTimeout(() => btn.textContent = 'コピー', 1400); }
     });
 
-    (async () => {
-      try {
-        const downloads = await claude.use('downloads');
-        if (downloads) {
-          const dl = document.getElementById('dlBtn');
-          dl.style.display = 'block';
-          dl.addEventListener('click', async () => {
-            const filename = fmt === 'jsonc' ? 'wrangler.jsonc' : 'wrangler.toml';
-            try { await downloads.save({ filename, data: document.getElementById('preview').textContent }); }
-            catch (e) { }
-          });
-        }
-      } catch (e) { }
-    })();
+    document.getElementById('dlBtn').addEventListener('click', () => {
+      const filename = fmt === 'jsonc' ? 'wrangler.jsonc' : 'wrangler.toml';
+      const blob = new Blob([document.getElementById('preview').textContent], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    });
 
     renderForm();
     renderOutput();
