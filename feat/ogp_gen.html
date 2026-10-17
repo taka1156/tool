@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.css">
+<script>
+  // 初回描画前にテーマを適用（ちらつき防止）
+  try {
+    var t = localStorage.getItem('webtools:theme');
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+</script>
+
+<title>OGP Image Generator</title>
+<style>
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+:root {
+  color-scheme: light;
+  --bg: #f5f6f8; --panel: #ffffff; --subtle: #f6f8fa; --hover: #eef0f3; --border: #dfe3e8;
+  --text: #1f2328; --muted: #656d76; --accent: #2563eb; --accent-weak: #e8f0fe; --code-bg: #f3f4f6;
+  --danger: #d1242f; --checker1: #ffffff; --checker2: #e3e6ea;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0d1117; --panel: #161b22; --subtle: #1c2330; --hover: #222b38; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #6ea8fe; --accent-weak: #1b2a45; --code-bg: #212a36;
+    --danger: #ff7b72; --checker1: #2a313c; --checker2: #222833;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d1117; --panel: #161b22; --subtle: #1c2330; --hover: #222b38; --border: #30363d;
+  --text: #e6edf3; --muted: #8b949e; --accent: #6ea8fe; --accent-weak: #1b2a45; --code-bg: #212a36;
+  --danger: #ff7b72; --checker1: #2a313c; --checker2: #222833;
+}
+
+html { height: 100%; }
+body {
+  margin: 0; min-height: 100%; background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
+  font-size: 14px; line-height: 1.6;
+}
+.app-header {
+  position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border);
+}
+.app-header h1 { font-size: 16px; margin: 0; font-weight: 700; }
+.spacer { flex: 1; }
+
+button, .btn {
+  font: inherit; font-size: 13px; color: var(--text); background: var(--panel);
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; cursor: pointer;
+  line-height: 1.3; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+}
+button:hover, .btn:hover { background: var(--hover); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+button.primary:hover { background: #1d4ed8; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+main.layout {
+  max-width: 1200px; margin: 0 auto; padding: 16px; display: grid;
+  grid-template-columns: minmax(300px, 420px) minmax(0, 1fr); gap: 16px; align-items: start;
+}
+@media (max-width: 860px) { main.layout { grid-template-columns: 1fr; } }
+.col { min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.card + .card { margin-top: 16px; }
+.card h2 { font-size: 13px; margin: 0 0 10px; color: var(--muted); letter-spacing: .04em; }
+.card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.card-head h2 { margin: 0; flex: 1; }
+
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.field:last-child { margin-bottom: 0; }
+.field > label, .label { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.row > .grow { flex: 1; min-width: 0; }
+input[type=text], input[type=number], input[type=url], input[type=password], textarea, select {
+  font: inherit; font-size: 14px; color: var(--text); background: var(--panel);
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; width: 100%;
+}
+textarea { resize: vertical; }
+input[type=color] {
+  width: 44px; height: 32px; padding: 0; border: 1px solid var(--border);
+  border-radius: 6px; background: var(--panel); cursor: pointer; flex: none;
+}
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.val { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; }
+.check { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.hint { font-size: 12px; color: var(--muted); }
+.error { color: var(--danger); font-size: 12px; white-space: pre-wrap; }
+pre.code {
+  margin: 0; padding: 10px 12px; background: var(--code-bg); border-radius: 8px; overflow: auto;
+  font-size: 12px; line-height: 1.55; white-space: pre;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Noto Sans Mono CJK JP", monospace;
+}
+.checker {
+  background-color: var(--checker1);
+  background-image:
+    linear-gradient(45deg, var(--checker2) 25%, transparent 25%, transparent 75%, var(--checker2) 75%),
+    linear-gradient(45deg, var(--checker2) 25%, transparent 25%, transparent 75%, var(--checker2) 75%);
+  background-size: 16px 16px; background-position: 0 0, 8px 8px;
+}
+.dropzone {
+  border: 2px dashed var(--border); border-radius: 10px; padding: 18px; text-align: center;
+  color: var(--muted); cursor: pointer; transition: .15s;
+}
+.dropzone:hover, .dropzone.drag { border-color: var(--accent); background: var(--accent-weak); color: var(--text); }
+
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+  background: #24292f; color: #fff; border: 1px solid #444c56; padding: 8px 14px; border-radius: 8px;
+  opacity: 0; pointer-events: none; transition: .2s; z-index: 1000; font-size: 13px; max-width: 90vw;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* driver.js をテーマに合わせる */
+.driver-popover { font-family: inherit; background: var(--panel); color: var(--text); }
+.driver-popover-title { color: var(--text); }
+.driver-popover-description, .driver-popover-progress-text { color: var(--muted); }
+.driver-popover-footer button { background: var(--panel); color: var(--text); border: 1px solid var(--border); text-shadow: none; }
+.driver-popover-footer button:hover { background: var(--hover); }
+.driver-popover-close-btn { color: var(--muted); }
+.driver-popover-arrow-side-left.driver-popover-arrow { border-left-color: var(--panel); }
+.driver-popover-arrow-side-right.driver-popover-arrow { border-right-color: var(--panel); }
+.driver-popover-arrow-side-top.driver-popover-arrow { border-top-color: var(--panel); }
+.driver-popover-arrow-side-bottom.driver-popover-arrow { border-bottom-color: var(--panel); }
+
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.preset { width: 52px; height: 34px; border-radius: 8px; border: 2px solid var(--border); padding: 0; cursor: pointer; }
+.preset:hover { border-color: var(--accent); background-clip: padding-box; }
+#canvasWrap { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); line-height: 0; }
+#cv { width: 100%; height: auto; display: block; }
+.file-row { display: flex; gap: 8px; align-items: center; }
+.file-row input[type=file] { flex: 1; min-width: 0; font-size: 12px; }
+</style>
+</head>
+<body>
+<header class="app-header">
+  <h1>🖼️ OGP Image Generator</h1>
+  <div class="spacer"></div>
+  <button id="btnTheme" type="button" title="テーマ切替（自動 / ライト / ダーク）">🌓 自動</button>
+  <button id="btnHelp" type="button" title="使い方ツアー">？</button>
+</header>
+
+<main class="layout">
+  <div class="col">
+    <section class="card" id="textCard">
+      <h2>① テキスト</h2>
+      <div class="field"><label for="title">タイトル（改行できます）</label><textarea id="title" data-k="title" rows="3"></textarea></div>
+      <div class="field"><label for="sub">サブタイトル</label><input type="text" id="sub" data-k="sub"></div>
+      <div class="field"><label for="site">サイト名 / 作者</label><input type="text" id="site" data-k="site"></div>
+      <div class="two">
+        <div class="field">
+          <label for="font">フォント</label>
+          <select id="font" data-k="font">
+            <option value="sans">ゴシック</option>
+            <option value="serif">明朝</option>
+            <option value="round">丸ゴシック</option>
+            <option value="mono">等幅</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="align">配置</label>
+          <select id="align" data-k="align">
+            <option value="left">左揃え</option>
+            <option value="center">中央</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="size"><span>タイトルの最大サイズ（長いときは自動で縮小）</span><span class="val" data-show="size"></span></label>
+        <input type="range" id="size" data-k="size" min="40" max="130" step="2">
+      </div>
+      <div class="hint">フォントは端末にあるものが使われます。</div>
+    </section>
+
+    <section class="card" id="designCard">
+      <h2>② デザイン</h2>
+      <div class="presets" id="presets" aria-label="配色プリセット"></div>
+      <div class="two">
+        <div class="field">
+          <label for="bgType">背景</label>
+          <select id="bgType" data-k="bgType"><option value="gradient">グラデーション</option><option value="solid">単色</option></select>
+        </div>
+        <div class="field">
+          <label for="angle"><span>角度</span><span class="val" data-show="angle"></span></label>
+          <input type="range" id="angle" data-k="angle" min="0" max="360" step="5">
+        </div>
+      </div>
+      <div class="two">
+        <div class="field"><label for="c1">背景色 1</label><input type="color" id="c1" data-k="c1"></div>
+        <div class="field"><label for="c2">背景色 2</label><input type="color" id="c2" data-k="c2"></div>
+        <div class="field"><label for="text">文字色</label><input type="color" id="text" data-k="text"></div>
+        <div class="field"><label for="accent">アクセント色</label><input type="color" id="accent" data-k="accent"></div>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="pattern">模様</label>
+          <select id="pattern" data-k="pattern">
+            <option value="none">なし</option><option value="dots">ドット</option><option value="grid">グリッド</option>
+            <option value="circles">円</option><option value="stripes">斜線</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="deco">装飾</label>
+          <select id="deco" data-k="deco">
+            <option value="none">なし</option><option value="bar-left">左の縦ライン</option>
+            <option value="bar-top">上のライン</option><option value="frame">枠線</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="imageCard">
+      <h2>③ 画像（任意）</h2>
+      <div class="field">
+        <label for="bgFile">背景画像</label>
+        <div class="file-row"><input type="file" id="bgFile" accept="image/*"><button type="button" id="bgClear">削除</button></div>
+      </div>
+      <div class="field">
+        <label for="overlay"><span>背景画像の暗さ</span><span class="val" data-show="overlay"></span></label>
+        <input type="range" id="overlay" data-k="overlay" min="0" max="90" step="5">
+      </div>
+      <div class="field">
+        <label for="logoFile">ロゴ（文字の上に表示）</label>
+        <div class="file-row"><input type="file" id="logoFile" accept="image/*"><button type="button" id="logoClear">削除</button></div>
+      </div>
+      <div class="field">
+        <label for="logoSize"><span>ロゴの高さ</span><span class="val" data-show="logoSize"></span></label>
+        <input type="range" id="logoSize" data-k="logoSize" min="32" max="200" step="4">
+      </div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="card" id="previewCard">
+      <div class="card-head">
+        <h2>プレビュー（1200 × 630）</h2>
+        <select id="fmt" data-k="fmt" style="width:auto" aria-label="出力形式">
+          <option value="png">PNG</option><option value="jpeg">JPEG</option>
+        </select>
+        <button type="button" id="btnCopy">コピー</button>
+        <button type="button" class="primary" id="btnDownload">ダウンロード</button>
+      </div>
+      <div id="canvasWrap"><canvas id="cv" width="1200" height="630"></canvas></div>
+    </section>
+
+    <section class="card" id="metaCard">
+      <div class="card-head">
+        <h2>&lt;meta&gt; タグ</h2>
+        <button type="button" id="btnCopyMeta">コピー</button>
+      </div>
+      <div class="field">
+        <label for="url">画像を置くURL</label>
+        <input type="url" id="url" data-k="url" placeholder="https://example.com/ogp.png">
+      </div>
+      <pre class="code" id="metaSnippet"></pre>
+    </section>
+  </div>
+</main>
+
+<script>
+/* ===================== common utilities ===================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const lsGet = (k, d = null) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const debounce = (fn, ms = 150) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtBytes = n => n < 1024 ? n + ' B' : (n / 1024).toFixed(1) + ' KB';
+
+/* ---------- theme (auto / light / dark) ---------- */
+const THEME_KEY = 'webtools:theme';
+const THEMES = ['auto', 'light', 'dark'];
+const THEME_LABEL = { auto: '🌓 自動', light: '☀️ ライト', dark: '🌙 ダーク' };
+let theme = lsGet(THEME_KEY, 'auto');
+if (!THEMES.includes(theme)) theme = 'auto';
+const darkMQ = window.matchMedia('(prefers-color-scheme: dark)');
+const isDark = () => theme === 'dark' || (theme === 'auto' && darkMQ.matches);
+function applyTheme(t) {
+  theme = t;
+  if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', t);
+  const b = $('#btnTheme');
+  if (b) b.textContent = THEME_LABEL[t];
+  lsSet(THEME_KEY, t);
+  document.dispatchEvent(new Event('themechange'));
+}
+if (darkMQ.addEventListener) darkMQ.addEventListener('change', () => document.dispatchEvent(new Event('themechange')));
+
+/* ---------- toast / download / clipboard ---------- */
+let toastTimer;
+function toast(msg) {
+  let el = $('#toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast'; el.className = 'toast'; el.setAttribute('role', 'status');
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+function downloadBlob(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e2) {}
+    ta.remove();
+  }
+  toast('コピーしました');
+}
+async function copyImageFromCanvas(canvas) {
+  try {
+    const blob = await canvasToBlob(canvas, 'image/png');
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    toast('画像をコピーしました');
+  } catch (e) {
+    toast('この環境では画像のコピーができません。保存を使ってください');
+  }
+}
+
+/* ---------- image / canvas helpers ---------- */
+const canvasToBlob = (canvas, type = 'image/png', q) => new Promise(r => canvas.toBlob(r, type, q));
+function loadImage(url) {
+  return new Promise((res, rej) => {
+    const i = new Image();
+    i.onload = () => res(i);
+    i.onerror = () => rej(new Error('image load failed'));
+    i.src = url;
+  });
+}
+function roundRectPath(ctx, x, y, w, h, r) {
+  r = Math.max(0, Math.min(r, w / 2, h / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+/* 大きく縮小するときは段階的に半分にして画質を保つ */
+function resample(src, sw, sh, dw, dh) {
+  let cur = src, cw = sw, ch = sh;
+  while (cw / 2 >= dw && ch / 2 >= dh) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(cw / 2));
+    c.height = Math.max(1, Math.round(ch / 2));
+    const x = c.getContext('2d');
+    x.imageSmoothingQuality = 'high';
+    x.drawImage(cur, 0, 0, c.width, c.height);
+    cur = c; cw = c.width; ch = c.height;
+  }
+  const out = document.createElement('canvas');
+  out.width = Math.max(1, Math.round(dw));
+  out.height = Math.max(1, Math.round(dh));
+  const o = out.getContext('2d');
+  o.imageSmoothingQuality = 'high';
+  o.drawImage(cur, 0, 0, out.width, out.height);
+  return out;
+}
+
+/* ---------- file drop ---------- */
+function setupDrop(zone, input, cb) {
+  zone.addEventListener('click', () => input.click());
+  zone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+  ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('drag'); }));
+  zone.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) cb(f); });
+  input.addEventListener('change', () => { const f = input.files[0]; if (f) cb(f); input.value = ''; });
+}
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => e.preventDefault());
+
+/* ---------- lazy script loader ---------- */
+const _scripts = {};
+function loadScript(src) {
+  if (!_scripts[src]) {
+    _scripts[src] = new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = res;
+      s.onerror = () => { delete _scripts[src]; rej(new Error('読み込みに失敗しました: ' + src)); };
+      document.head.appendChild(s);
+    });
+  }
+  return _scripts[src];
+}
+
+/* ---------- init: theme button + driver.js onboarding ---------- */
+const DRIVER_JS = 'https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.js.iife.js';
+function initCommon({ steps, beforeTour } = {}) {
+  applyTheme(theme);
+  const bt = $('#btnTheme');
+  if (bt) bt.addEventListener('click', () => applyTheme(THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]));
+
+  const runTour = async () => {
+    try { await loadScript(DRIVER_JS); } catch (e) { toast('ツアーの読み込みに失敗しました'); return; }
+    if (beforeTour) await beforeTour();
+    const { driver } = window.driver.js;
+    driver({
+      showProgress: true, allowClose: true,
+      nextBtnText: '次へ', prevBtnText: '戻る', doneBtnText: '完了',
+      progressText: '{{current}} / {{total}}',
+      steps: steps ? steps() : []
+    }).drive();
+  };
+  const bh = $('#btnHelp');
+  if (bh) bh.addEventListener('click', runTour);
+
+  const params = new URLSearchParams(location.search);
+  if (params.get('onBoarding') === '1') {
+    params.delete('onBoarding');
+    const qs = params.toString();
+    try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash); } catch (e) {}
+    if (document.readyState === 'complete') runTour();
+    else window.addEventListener('load', runTour);
+  }
+}
+
+
+/* ===================== OGP image generator ===================== */
+const W = 1200, H = 630;
+const KEY = 'webtools:ogp';
+const DEFAULTS = {
+  title: 'ブラウザだけで作る\nOGP画像ジェネレーター',
+  sub: '1200×630 のSNS共有用画像をカンタンに',
+  site: 'example.com',
+  bgType: 'gradient', c1: '#0f172a', c2: '#2563eb', angle: 135,
+  text: '#ffffff', accent: '#38bdf8',
+  font: 'sans', align: 'left', size: 84,
+  pattern: 'dots', deco: 'bar-left',
+  overlay: 40, logoSize: 72, fmt: 'png', url: 'https://example.com/ogp.png'
+};
+const FONTS = {
+  sans: '"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic","Meiryo",system-ui,sans-serif',
+  serif: '"Hiragino Mincho ProN","Noto Serif JP","Yu Mincho","MS PMincho",serif',
+  round: '"Hiragino Maru Gothic ProN","M PLUS Rounded 1c","Yu Gothic","Meiryo",sans-serif',
+  mono: 'ui-monospace,SFMono-Regular,Menlo,Consolas,"Noto Sans Mono CJK JP",monospace'
+};
+const PRESETS = [
+  { n: 'Ocean', c1: '#0f172a', c2: '#2563eb', text: '#ffffff', accent: '#38bdf8' },
+  { n: 'Sunset', c1: '#f97316', c2: '#db2777', text: '#ffffff', accent: '#fde68a' },
+  { n: 'Forest', c1: '#064e3b', c2: '#10b981', text: '#ffffff', accent: '#fef08a' },
+  { n: 'Violet', c1: '#4c1d95', c2: '#a855f7', text: '#ffffff', accent: '#f0abfc' },
+  { n: 'Paper', c1: '#fafaf9', c2: '#e7e5e4', text: '#1c1917', accent: '#dc2626' },
+  { n: 'Midnight', c1: '#000000', c2: '#1f2937', text: '#ffffff', accent: '#f59e0b' }
+];
+
+let s = { ...DEFAULTS };
+try { Object.assign(s, JSON.parse(lsGet(KEY, '{}'))); } catch (e) {}
+const imgs = { bg: null, logo: null };
+const cv = $('#cv');
+
+/* ---------- helpers ---------- */
+function withAlpha(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+const NOSTART = new Set('、。，．,.!?！？)]}）］｝」』】〉》ー・:;：；%'.split(''));
+function wrapText(ctx, text, maxW) {
+  const out = [];
+  for (const para of String(text).split('\n')) {
+    const tokens = para.match(/[A-Za-z0-9_@#%&=+\-.,:;!?'"’()\/\\]+|\s+|[\s\S]/gu) || [''];
+    let line = '';
+    for (const t of tokens) {
+      const test = line + t;
+      if (line === '' || ctx.measureText(test).width <= maxW || NOSTART.has(t)) line = test;
+      else { out.push(line.trimEnd()); line = t.trim() === '' ? '' : t; }
+    }
+    out.push(line.trimEnd());
+  }
+  return out;
+}
+function coverDraw(ctx, img, x, y, w, h) {
+  const sc = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+  const dw = img.naturalWidth * sc, dh = img.naturalHeight * sc;
+  ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+
+/* ---------- drawing ---------- */
+function drawPattern(ctx) {
+  ctx.save();
+  ctx.fillStyle = withAlpha(s.text, 0.12);
+  ctx.strokeStyle = withAlpha(s.text, 0.12);
+  if (s.pattern === 'dots') {
+    for (let y = 30; y < H; y += 40) for (let x = 30; x < W; x += 40) { ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill(); }
+  } else if (s.pattern === 'grid') {
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= W; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 0; y <= H; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  } else if (s.pattern === 'circles') {
+    ctx.lineWidth = 2;
+    for (let i = 1; i <= 5; i++) { ctx.beginPath(); ctx.arc(W - 80, H + 40, i * 130, 0, Math.PI * 2); ctx.stroke(); }
+  } else if (s.pattern === 'stripes') {
+    ctx.lineWidth = 18;
+    ctx.strokeStyle = withAlpha(s.text, 0.06);
+    for (let x = -H; x < W; x += 70) { ctx.beginPath(); ctx.moveTo(x, H); ctx.lineTo(x + H, 0); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+function drawDeco(ctx) {
+  if (s.deco === 'bar-left') { ctx.fillStyle = s.accent; ctx.fillRect(0, 0, 24, H); }
+  else if (s.deco === 'bar-top') { ctx.fillStyle = s.accent; ctx.fillRect(0, 0, W, 16); }
+  else if (s.deco === 'frame') { ctx.strokeStyle = withAlpha(s.text, 0.5); ctx.lineWidth = 4; ctx.strokeRect(36, 36, W - 72, H - 72); }
+}
+function drawTexts(ctx) {
+  const fam = FONTS[s.font] || FONTS.sans;
+  const weight = s.font === 'serif' ? 700 : 800;
+  const padX = (s.deco === 'bar-left' || s.deco === 'frame') ? 100 : 80;
+  const padY = s.deco === 'frame' ? 80 : 64;
+  const maxW = W - padX * 2;
+  const left = s.align === 'left';
+  const x = left ? padX : W / 2;
+  ctx.textAlign = left ? 'left' : 'center';
+  ctx.textBaseline = 'middle';
+
+  let top = padY, bottom = H - padY;
+  if (imgs.logo) {
+    const lh = s.logoSize, lw = imgs.logo.naturalWidth / imgs.logo.naturalHeight * lh;
+    ctx.drawImage(imgs.logo, left ? padX : (W - lw) / 2, top, lw, lh);
+    top += lh + 28;
+  }
+  if (s.site) {
+    ctx.font = `600 30px ${fam}`;
+    ctx.fillStyle = s.accent;
+    ctx.fillText(s.site, x, bottom - 15, maxW);
+    bottom -= 58;
+  }
+  const avail = Math.max(0, bottom - top);
+  const subSize = 34, gap = 28;
+  let size = s.size, lines = [], lh = 0, subs = [], blockH = 0;
+  for (;;) {
+    ctx.font = `${weight} ${size}px ${fam}`;
+    lines = wrapText(ctx, s.title, maxW);
+    lh = size * 1.3;
+    ctx.font = `400 ${subSize}px ${fam}`;
+    subs = s.sub ? wrapText(ctx, s.sub, maxW).slice(0, 2) : [];
+    blockH = lines.length * lh + (subs.length ? gap + subs.length * subSize * 1.5 : 0);
+    if ((blockH <= avail && lines.length <= 4) || size <= 28) break;
+    size -= 2;
+  }
+  let y = top + (avail - blockH) / 2;
+  ctx.font = `${weight} ${size}px ${fam}`;
+  ctx.fillStyle = s.text;
+  lines.forEach((ln, i) => ctx.fillText(ln, x, y + lh * (i + 0.5)));
+  y += lines.length * lh + gap;
+  ctx.font = `400 ${subSize}px ${fam}`;
+  ctx.fillStyle = withAlpha(s.text, 0.82);
+  subs.forEach((ln, i) => ctx.fillText(ln, x, y + subSize * 1.5 * (i + 0.5)));
+}
+function draw() {
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+  if (s.bgType === 'solid') {
+    ctx.fillStyle = s.c1;
+  } else {
+    const a = s.angle * Math.PI / 180;
+    const len = Math.abs(W * Math.sin(a)) + Math.abs(H * Math.cos(a));
+    const dx = Math.sin(a) * len / 2, dy = -Math.cos(a) * len / 2;
+    const g = ctx.createLinearGradient(W / 2 - dx, H / 2 - dy, W / 2 + dx, H / 2 + dy);
+    g.addColorStop(0, s.c1); g.addColorStop(1, s.c2);
+    ctx.fillStyle = g;
+  }
+  ctx.fillRect(0, 0, W, H);
+  if (imgs.bg) {
+    coverDraw(ctx, imgs.bg, 0, 0, W, H);
+    if (s.overlay > 0) { ctx.fillStyle = `rgba(0,0,0,${s.overlay / 100})`; ctx.fillRect(0, 0, W, H); }
+  }
+  drawPattern(ctx);
+  drawDeco(ctx);
+  drawTexts(ctx);
+  renderMeta();
+}
+let raf = 0;
+const redraw = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(draw); };
+
+/* ---------- meta snippet ---------- */
+function renderMeta() {
+  const one = t => escapeHtml(String(t).replace(/\s*\n\s*/g, ' ').trim());
+  const L = [
+    `<meta property="og:title" content="${one(s.title)}">`,
+    s.sub ? `<meta property="og:description" content="${one(s.sub)}">` : null,
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:image" content="${escapeHtml(s.url)}">`,
+    `<meta property="og:image:width" content="1200">`,
+    `<meta property="og:image:height" content="630">`,
+    `<meta name="twitter:card" content="summary_large_image">`
+  ].filter(Boolean);
+  $('#metaSnippet').textContent = L.join('\n');
+}
+
+/* ---------- UI binding ---------- */
+function syncUI() {
+  $$('[data-k]').forEach(el => {
+    const v = s[el.dataset.k];
+    if (el.type === 'checkbox') el.checked = !!v; else el.value = v;
+  });
+  $$('[data-show]').forEach(el => {
+    const k = el.dataset.show;
+    el.textContent = k === 'angle' ? s[k] + '°' : k === 'overlay' ? s[k] + '%' : s[k] + 'px';
+  });
+}
+$$('[data-k]').forEach(el => {
+  el.addEventListener('input', () => {
+    const k = el.dataset.k;
+    s[k] = (el.type === 'range' || el.type === 'number') ? Number(el.value) : (el.type === 'checkbox' ? el.checked : el.value);
+    syncUI();
+    lsSet(KEY, JSON.stringify(s));
+    redraw();
+  });
+});
+
+const presetsEl = $('#presets');
+PRESETS.forEach(p => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'preset'; b.title = p.n; b.setAttribute('aria-label', p.n);
+  b.style.background = `linear-gradient(135deg, ${p.c1}, ${p.c2})`;
+  b.addEventListener('click', () => {
+    Object.assign(s, { c1: p.c1, c2: p.c2, text: p.text, accent: p.accent, bgType: 'gradient' });
+    syncUI(); lsSet(KEY, JSON.stringify(s)); redraw();
+  });
+  presetsEl.appendChild(b);
+});
+
+async function pickImage(file, slot) {
+  try {
+    imgs[slot] = await loadImage(URL.createObjectURL(file));
+    redraw();
+  } catch (e) { toast('画像を読み込めませんでした'); }
+}
+$('#bgFile').addEventListener('change', e => { if (e.target.files[0]) pickImage(e.target.files[0], 'bg'); });
+$('#logoFile').addEventListener('change', e => { if (e.target.files[0]) pickImage(e.target.files[0], 'logo'); });
+$('#bgClear').addEventListener('click', () => { imgs.bg = null; $('#bgFile').value = ''; redraw(); });
+$('#logoClear').addEventListener('click', () => { imgs.logo = null; $('#logoFile').value = ''; redraw(); });
+
+/* ---------- output ---------- */
+$('#btnDownload').addEventListener('click', async () => {
+  draw();
+  const jpeg = s.fmt === 'jpeg';
+  const blob = await canvasToBlob(cv, jpeg ? 'image/jpeg' : 'image/png', 0.92);
+  downloadBlob(blob, 'ogp.' + (jpeg ? 'jpg' : 'png'));
+});
+$('#btnCopy').addEventListener('click', () => copyImageFromCanvas(cv));
+$('#btnCopyMeta').addEventListener('click', () => copyText($('#metaSnippet').textContent));
+
+syncUI();
+draw();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(redraw);
+
+initCommon({
+  steps: () => [
+    { popover: { title: 'OGP Image Generator', description: 'SNSでシェアされたときに表示される 1200×630 の画像を、ブラウザだけで作れます。' } },
+    { element: '#textCard', popover: { title: '① テキスト', description: 'タイトル・サブタイトル・サイト名を入力します。長いタイトルは自動で小さくなり、改行も使えます。', side: 'right', align: 'start' } },
+    { element: '#presets', popover: { title: '配色プリセット', description: 'ワンクリックで背景と文字色の組み合わせを切り替えられます。', side: 'right', align: 'start' } },
+    { element: '#designCard', popover: { title: '② デザイン', description: '背景（単色・グラデーション）、文字色、アクセント色、模様や装飾を調整します。', side: 'right', align: 'start' } },
+    { element: '#imageCard', popover: { title: '③ 背景画像・ロゴ', description: '写真を背景にしたり、ロゴを載せたりできます。背景画像は暗さを調整して文字を読みやすくします。', side: 'right', align: 'start' } },
+    { element: '#canvasWrap', popover: { title: 'プレビュー', description: '入力内容がリアルタイムに反映されます。設定はこのブラウザに自動保存されます。', side: 'left', align: 'start' } },
+    { element: '#btnDownload', popover: { title: 'ダウンロード', description: 'PNG または JPEG で保存します。「コピー」でクリップボードにも入れられます。', side: 'bottom', align: 'end' } },
+    { element: '#metaCard', popover: { title: '<meta> タグ', description: '画像を置くURLを入れると、og:image などのタグが生成されます。', side: 'left', align: 'start' } },
+    { element: '#btnTheme', popover: { title: 'ライト / ダーク', description: '「自動（OS設定に追従）」「ライト」「ダーク」を順に切り替えます。生成画像の色は変わりません。', side: 'bottom', align: 'end' } },
+    { element: '#btnHelp', popover: { title: 'ツアーをもう一度', description: 'このボタンでいつでも再表示できます。URLに ?onBoarding=1 を付けて開いても始まります。', side: 'bottom', align: 'end' } }
+  ]
+});
+</script>
+</body>
+</html>

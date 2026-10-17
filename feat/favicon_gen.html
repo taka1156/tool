@@ -1,0 +1,1019 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.css">
+    <script>
+        // 初回描画前にテーマを適用（ちらつき防止）
+        try {
+            var t = localStorage.getItem('webtools:theme');
+            if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+        } catch (e) { }
+    </script>
+
+    <title>Favicon Generator</title>
+    <style>
+        [hidden] {
+            display: none !important;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            color-scheme: light;
+            --bg: #f5f6f8;
+            --panel: #ffffff;
+            --subtle: #f6f8fa;
+            --hover: #eef0f3;
+            --border: #dfe3e8;
+            --text: #1f2328;
+            --muted: #656d76;
+            --accent: #2563eb;
+            --accent-weak: #e8f0fe;
+            --code-bg: #f3f4f6;
+            --danger: #d1242f;
+            --checker1: #ffffff;
+            --checker2: #e3e6ea;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                color-scheme: dark;
+                --bg: #0d1117;
+                --panel: #161b22;
+                --subtle: #1c2330;
+                --hover: #222b38;
+                --border: #30363d;
+                --text: #e6edf3;
+                --muted: #8b949e;
+                --accent: #6ea8fe;
+                --accent-weak: #1b2a45;
+                --code-bg: #212a36;
+                --danger: #ff7b72;
+                --checker1: #2a313c;
+                --checker2: #222833;
+            }
+        }
+
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --bg: #0d1117;
+            --panel: #161b22;
+            --subtle: #1c2330;
+            --hover: #222b38;
+            --border: #30363d;
+            --text: #e6edf3;
+            --muted: #8b949e;
+            --accent: #6ea8fe;
+            --accent-weak: #1b2a45;
+            --code-bg: #212a36;
+            --danger: #ff7b72;
+            --checker1: #2a313c;
+            --checker2: #222833;
+        }
+
+        html {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .app-header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .app-header h1 {
+            font-size: 16px;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .spacer {
+            flex: 1;
+        }
+
+        button,
+        .btn {
+            font: inherit;
+            font-size: 13px;
+            color: var(--text);
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            line-height: 1.3;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:hover,
+        .btn:hover {
+            background: var(--hover);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #fff;
+        }
+
+        button.primary:hover {
+            background: #1d4ed8;
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 1px;
+        }
+
+        main.layout {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 16px;
+            display: grid;
+            grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+
+        @media (max-width: 860px) {
+            main.layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .col {
+            min-width: 0;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+        }
+
+        .card+.card {
+            margin-top: 16px;
+        }
+
+        .card h2 {
+            font-size: 13px;
+            margin: 0 0 10px;
+            color: var(--muted);
+            letter-spacing: .04em;
+        }
+
+        .card-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .card-head h2 {
+            margin: 0;
+            flex: 1;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 12px;
+        }
+
+        .field:last-child {
+            margin-bottom: 0;
+        }
+
+        .field>label,
+        .label {
+            font-size: 12px;
+            color: var(--muted);
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .row>.grow {
+            flex: 1;
+            min-width: 0;
+        }
+
+        input[type=text],
+        input[type=number],
+        input[type=url],
+        input[type=password],
+        textarea,
+        select {
+            font: inherit;
+            font-size: 14px;
+            color: var(--text);
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            width: 100%;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        input[type=color] {
+            width: 44px;
+            height: 32px;
+            padding: 0;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--panel);
+            cursor: pointer;
+            flex: none;
+        }
+
+        input[type=range] {
+            width: 100%;
+            accent-color: var(--accent);
+        }
+
+        .val {
+            font-variant-numeric: tabular-nums;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .check {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .error {
+            color: var(--danger);
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+
+        pre.code {
+            margin: 0;
+            padding: 10px 12px;
+            background: var(--code-bg);
+            border-radius: 8px;
+            overflow: auto;
+            font-size: 12px;
+            line-height: 1.55;
+            white-space: pre;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Noto Sans Mono CJK JP", monospace;
+        }
+
+        .checker {
+            background-color: var(--checker1);
+            background-image:
+                linear-gradient(45deg, var(--checker2) 25%, transparent 25%, transparent 75%, var(--checker2) 75%),
+                linear-gradient(45deg, var(--checker2) 25%, transparent 25%, transparent 75%, var(--checker2) 75%);
+            background-size: 16px 16px;
+            background-position: 0 0, 8px 8px;
+        }
+
+        .dropzone {
+            border: 2px dashed var(--border);
+            border-radius: 10px;
+            padding: 18px;
+            text-align: center;
+            color: var(--muted);
+            cursor: pointer;
+            transition: .15s;
+        }
+
+        .dropzone:hover,
+        .dropzone.drag {
+            border-color: var(--accent);
+            background: var(--accent-weak);
+            color: var(--text);
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translateX(-50%) translateY(20px);
+            background: #24292f;
+            color: #fff;
+            border: 1px solid #444c56;
+            padding: 8px 14px;
+            border-radius: 8px;
+            opacity: 0;
+            pointer-events: none;
+            transition: .2s;
+            z-index: 1000;
+            font-size: 13px;
+            max-width: 90vw;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* driver.js をテーマに合わせる */
+        .driver-popover {
+            font-family: inherit;
+            background: var(--panel);
+            color: var(--text);
+        }
+
+        .driver-popover-title {
+            color: var(--text);
+        }
+
+        .driver-popover-description,
+        .driver-popover-progress-text {
+            color: var(--muted);
+        }
+
+        .driver-popover-footer button {
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+            text-shadow: none;
+        }
+
+        .driver-popover-footer button:hover {
+            background: var(--hover);
+        }
+
+        .driver-popover-close-btn {
+            color: var(--muted);
+        }
+
+        .driver-popover-arrow-side-left.driver-popover-arrow {
+            border-left-color: var(--panel);
+        }
+
+        .driver-popover-arrow-side-right.driver-popover-arrow {
+            border-right-color: var(--panel);
+        }
+
+        .driver-popover-arrow-side-top.driver-popover-arrow {
+            border-top-color: var(--panel);
+        }
+
+        .driver-popover-arrow-side-bottom.driver-popover-arrow {
+            border-bottom-color: var(--panel);
+        }
+
+        .src-preview {
+            width: 64px;
+            height: 64px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            flex: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .src-preview img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .tiles {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .tile {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            text-align: center;
+            background: var(--subtle);
+        }
+
+        .tile .thumb {
+            width: 96px;
+            height: 96px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .tile .thumb img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .tile .name {
+            font-size: 12px;
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        .tile .meta {
+            font-size: 11px;
+            color: var(--muted);
+            line-height: 1.4;
+        }
+
+        .empty {
+            color: var(--muted);
+            padding: 24px 8px;
+            text-align: center;
+        }
+
+        .two {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="app-header">
+        <h1>🎨 Favicon Generator</h1>
+        <div class="spacer"></div>
+        <button id="btnTheme" type="button" title="テーマ切替（自動 / ライト / ダーク）">🌓 自動</button>
+        <button id="btnHelp" type="button" title="使い方ツアー">？</button>
+    </header>
+
+    <main class="layout">
+        <div class="col">
+            <section class="card" id="srcCard">
+                <h2>① 元画像</h2>
+                <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="画像を選択">
+                    <div style="font-size:28px">🖼️</div>
+                    <div>ここにドロップ / クリックして選択 / Ctrl+V で貼り付け</div>
+                    <div class="hint">SVG・PNG・JPG・WebP（512px以上の正方形がおすすめ）</div>
+                </div>
+                <input type="file" id="fileInput" accept="image/*,.svg" hidden>
+                <div class="row" id="srcInfo" style="margin-top:10px" hidden>
+                    <div class="checker src-preview"><img id="srcImg" alt=""></div>
+                    <div class="grow">
+                        <div id="srcName" style="font-weight:600;word-break:break-all"></div>
+                        <div id="srcMeta" class="hint"></div>
+                    </div>
+                </div>
+                <div class="row" style="margin-top:10px"><button type="button" id="btnSample">サンプルで試す</button></div>
+            </section>
+
+            <section class="card" id="settingsCard">
+                <h2>② デザイン調整</h2>
+                <div class="field">
+                    <label for="fit">フィット</label>
+                    <select id="fit">
+                        <option value="contain">全体を収める（contain）</option>
+                        <option value="cover">正方形に切り抜く（cover）</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="pad"><span>余白</span><span class="val" id="padVal">0%</span></label>
+                    <input type="range" id="pad" min="0" max="30" value="0">
+                </div>
+                <div class="field">
+                    <label for="radius"><span>角丸</span><span class="val" id="radiusVal">0%</span></label>
+                    <input type="range" id="radius" min="0" max="50" value="0">
+                </div>
+                <div class="field">
+                    <div class="check"><input type="checkbox" id="keepAlpha" checked><label
+                            for="keepAlpha">透過を保持（favicon・PWA）</label></div>
+                </div>
+                <div class="field">
+                    <label for="bg">背景色</label>
+                    <div class="row">
+                        <input type="color" id="bg" value="#ffffff">
+                        <span class="hint grow">Apple Touch Icon と maskable は常にこの色で塗ります（iOSは透過が黒になるため）</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card" id="manifestCard">
+                <h2>③ manifest.json / HTML</h2>
+                <div class="two">
+                    <div class="field"><label for="mName">name</label><input type="text" id="mName" value="My App">
+                    </div>
+                    <div class="field"><label for="mShort">short_name</label><input type="text" id="mShort"
+                            value="MyApp"></div>
+                </div>
+                <div class="field">
+                    <label for="mDisplay">display</label>
+                    <select id="mDisplay">
+                        <option value="standalone">standalone</option>
+                        <option value="browser">browser</option>
+                        <option value="minimal-ui">minimal-ui</option>
+                        <option value="fullscreen">fullscreen</option>
+                    </select>
+                </div>
+                <div class="two">
+                    <div class="field"><label for="mTheme">theme_color</label><input type="color" id="mTheme"
+                            value="#2563eb"></div>
+                    <div class="field"><label for="mBg">background_color</label><input type="color" id="mBg"
+                            value="#ffffff"></div>
+                </div>
+                <div class="field">
+                    <label for="basePath">アイコンの配置パス</label>
+                    <input type="text" id="basePath" value="/" placeholder="/ または /assets/icons/">
+                </div>
+            </section>
+        </div>
+
+        <div class="col">
+            <section class="card" id="previewCard">
+                <div class="card-head">
+                    <h2>プレビュー / ダウンロード</h2>
+                    <button type="button" class="primary" id="btnZip">ZIPで一括ダウンロード</button>
+                </div>
+                <div id="tiles" class="tiles">
+                    <div class="empty">画像を読み込むと、ここにアイコン一式が表示されます</div>
+                </div>
+            </section>
+
+            <section class="card" id="snippetCard">
+                <div class="card-head">
+                    <h2>&lt;head&gt; に貼るHTML</h2>
+                    <button type="button" id="btnCopyHtml">コピー</button>
+                </div>
+                <pre class="code" id="htmlSnippet"></pre>
+                <div class="card-head" style="margin-top:16px">
+                    <h2>manifest.json</h2>
+                    <button type="button" id="btnCopyManifest">コピー</button>
+                    <button type="button" id="btnSaveManifest">保存</button>
+                </div>
+                <pre class="code" id="manifestPreview"></pre>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        /* ===================== common utilities ===================== */
+        const $ = (s, r = document) => r.querySelector(s);
+        const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+        const lsGet = (k, d = null) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } };
+        const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { } };
+        const debounce = (fn, ms = 150) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+        const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const fmtBytes = n => n < 1024 ? n + ' B' : (n / 1024).toFixed(1) + ' KB';
+
+        /* ---------- theme (auto / light / dark) ---------- */
+        const THEME_KEY = 'webtools:theme';
+        const THEMES = ['auto', 'light', 'dark'];
+        const THEME_LABEL = { auto: '🌓 自動', light: '☀️ ライト', dark: '🌙 ダーク' };
+        let theme = lsGet(THEME_KEY, 'auto');
+        if (!THEMES.includes(theme)) theme = 'auto';
+        const darkMQ = window.matchMedia('(prefers-color-scheme: dark)');
+        const isDark = () => theme === 'dark' || (theme === 'auto' && darkMQ.matches);
+        function applyTheme(t) {
+            theme = t;
+            if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+            else document.documentElement.setAttribute('data-theme', t);
+            const b = $('#btnTheme');
+            if (b) b.textContent = THEME_LABEL[t];
+            lsSet(THEME_KEY, t);
+            document.dispatchEvent(new Event('themechange'));
+        }
+        if (darkMQ.addEventListener) darkMQ.addEventListener('change', () => document.dispatchEvent(new Event('themechange')));
+
+        /* ---------- toast / download / clipboard ---------- */
+        let toastTimer;
+        function toast(msg) {
+            let el = $('#toast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'toast'; el.className = 'toast'; el.setAttribute('role', 'status');
+                document.body.appendChild(el);
+            }
+            el.textContent = msg;
+            el.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+        }
+        function downloadBlob(blob, name) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        }
+        async function copyText(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+            } catch (e) {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); } catch (e2) { }
+                ta.remove();
+            }
+            toast('コピーしました');
+        }
+        async function copyImageFromCanvas(canvas) {
+            try {
+                const blob = await canvasToBlob(canvas, 'image/png');
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                toast('画像をコピーしました');
+            } catch (e) {
+                toast('この環境では画像のコピーができません。保存を使ってください');
+            }
+        }
+
+        /* ---------- image / canvas helpers ---------- */
+        const canvasToBlob = (canvas, type = 'image/png', q) => new Promise(r => canvas.toBlob(r, type, q));
+        function loadImage(url) {
+            return new Promise((res, rej) => {
+                const i = new Image();
+                i.onload = () => res(i);
+                i.onerror = () => rej(new Error('image load failed'));
+                i.src = url;
+            });
+        }
+        function roundRectPath(ctx, x, y, w, h, r) {
+            r = Math.max(0, Math.min(r, w / 2, h / 2));
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
+        }
+        /* 大きく縮小するときは段階的に半分にして画質を保つ */
+        function resample(src, sw, sh, dw, dh) {
+            let cur = src, cw = sw, ch = sh;
+            while (cw / 2 >= dw && ch / 2 >= dh) {
+                const c = document.createElement('canvas');
+                c.width = Math.max(1, Math.round(cw / 2));
+                c.height = Math.max(1, Math.round(ch / 2));
+                const x = c.getContext('2d');
+                x.imageSmoothingQuality = 'high';
+                x.drawImage(cur, 0, 0, c.width, c.height);
+                cur = c; cw = c.width; ch = c.height;
+            }
+            const out = document.createElement('canvas');
+            out.width = Math.max(1, Math.round(dw));
+            out.height = Math.max(1, Math.round(dh));
+            const o = out.getContext('2d');
+            o.imageSmoothingQuality = 'high';
+            o.drawImage(cur, 0, 0, out.width, out.height);
+            return out;
+        }
+
+        /* ---------- file drop ---------- */
+        function setupDrop(zone, input, cb) {
+            zone.addEventListener('click', () => input.click());
+            zone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+            ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('drag'); }));
+            ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('drag'); }));
+            zone.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) cb(f); });
+            input.addEventListener('change', () => { const f = input.files[0]; if (f) cb(f); input.value = ''; });
+        }
+        window.addEventListener('dragover', e => e.preventDefault());
+        window.addEventListener('drop', e => e.preventDefault());
+
+        /* ---------- lazy script loader ---------- */
+        const _scripts = {};
+        function loadScript(src) {
+            if (!_scripts[src]) {
+                _scripts[src] = new Promise((res, rej) => {
+                    const s = document.createElement('script');
+                    s.src = src;
+                    s.onload = res;
+                    s.onerror = () => { delete _scripts[src]; rej(new Error('読み込みに失敗しました: ' + src)); };
+                    document.head.appendChild(s);
+                });
+            }
+            return _scripts[src];
+        }
+
+        /* ---------- init: theme button + driver.js onboarding ---------- */
+        const DRIVER_JS = 'https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.js.iife.js';
+        function initCommon({ steps, beforeTour } = {}) {
+            applyTheme(theme);
+            const bt = $('#btnTheme');
+            if (bt) bt.addEventListener('click', () => applyTheme(THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]));
+
+            const runTour = async () => {
+                try { await loadScript(DRIVER_JS); } catch (e) { toast('ツアーの読み込みに失敗しました'); return; }
+                if (beforeTour) await beforeTour();
+                const { driver } = window.driver.js;
+                driver({
+                    showProgress: true, allowClose: true,
+                    nextBtnText: '次へ', prevBtnText: '戻る', doneBtnText: '完了',
+                    progressText: '{{current}} / {{total}}',
+                    steps: steps ? steps() : []
+                }).drive();
+            };
+            const bh = $('#btnHelp');
+            if (bh) bh.addEventListener('click', runTour);
+
+            const params = new URLSearchParams(location.search);
+            if (params.get('onBoarding') === '1') {
+                params.delete('onBoarding');
+                const qs = params.toString();
+                try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash); } catch (e) { }
+                if (document.readyState === 'complete') runTour();
+                else window.addEventListener('load', runTour);
+            }
+        }
+
+
+        /* ===================== favicon generator ===================== */
+        const JSZIP_URL = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+        const SAMPLE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366f1"/><stop offset="1" stop-color="#ec4899"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#g)"/><path d="M256 120l40 96 104 8-80 68 26 100-90-56-90 56 26-100-80-68 104-8z" fill="#fff"/></svg>`;
+
+        const ICONS = [
+            { file: 'favicon-16x16.png', size: 16, kind: 'any', note: 'ブラウザタブ' },
+            { file: 'favicon-32x32.png', size: 32, kind: 'any', note: 'ブラウザタブ(HiDPI)' },
+            { file: 'apple-touch-icon.png', size: 180, kind: 'apple', note: 'iOS ホーム画面' },
+            { file: 'icon-192.png', size: 192, kind: 'any', note: 'PWA / Android' },
+            { file: 'icon-512.png', size: 512, kind: 'any', note: 'PWA / スプラッシュ' },
+            { file: 'icon-maskable-512.png', size: 512, kind: 'maskable', note: 'PWA マスカブル' }
+        ];
+        const ICO_SIZES = [16, 32, 48];
+        const state = { img: null, isSvg: false, svgText: '', w: 0, h: 0, name: '', files: {}, prev: {}, urls: [], ready: false };
+        let genSeq = 0;
+
+        const val = id => $('#' + id).value;
+        function opts() {
+            return {
+                fit: val('fit'), pad: +val('pad') / 100, radius: +val('radius') / 100,
+                keepAlpha: $('#keepAlpha').checked, bg: val('bg')
+            };
+        }
+
+        function renderIcon(size, kind) {
+            const o = opts();
+            const c = document.createElement('canvas');
+            c.width = c.height = size;
+            const ctx = c.getContext('2d');
+            const opaque = kind !== 'any' || !o.keepAlpha;
+            ctx.save();
+            if (kind === 'any' && o.radius > 0) { roundRectPath(ctx, 0, 0, size, size, size * o.radius); ctx.clip(); }
+            if (opaque) { ctx.fillStyle = o.bg; ctx.fillRect(0, 0, size, size); }
+            const pad = kind === 'maskable' ? 0.1 + o.pad * 0.8 : o.pad; // maskable は中央80%が安全領域
+            const box = size * (1 - 2 * pad);
+            const sc = o.fit === 'cover' ? Math.max(box / state.w, box / state.h) : Math.min(box / state.w, box / state.h);
+            const dw = state.w * sc, dh = state.h * sc;
+            const dx = (size - dw) / 2, dy = (size - dh) / 2;
+            ctx.save();
+            if (o.fit === 'cover') { ctx.beginPath(); ctx.rect((size - box) / 2, (size - box) / 2, box, box); ctx.clip(); }
+            if (state.isSvg) {
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(state.img, dx, dy, dw, dh);
+            } else {
+                ctx.drawImage(resample(state.img, state.w, state.h, dw, dh), dx, dy, dw, dh);
+            }
+            ctx.restore();
+            ctx.restore();
+            return c;
+        }
+
+        /* PNG埋め込みのICOを組み立てる */
+        async function buildIco(pngBlobs, sizes) {
+            const bufs = await Promise.all(pngBlobs.map(b => b.arrayBuffer()));
+            const n = bufs.length;
+            let offset = 6 + 16 * n;
+            const head = new DataView(new ArrayBuffer(offset));
+            head.setUint16(0, 0, true); head.setUint16(2, 1, true); head.setUint16(4, n, true);
+            bufs.forEach((b, i) => {
+                const o = 6 + 16 * i, s = sizes[i];
+                head.setUint8(o, s >= 256 ? 0 : s);
+                head.setUint8(o + 1, s >= 256 ? 0 : s);
+                head.setUint8(o + 2, 0); head.setUint8(o + 3, 0);
+                head.setUint16(o + 4, 1, true); head.setUint16(o + 6, 32, true);
+                head.setUint32(o + 8, b.byteLength, true);
+                head.setUint32(o + 12, offset, true);
+                offset += b.byteLength;
+            });
+            return new Blob([head.buffer, ...bufs], { type: 'image/x-icon' });
+        }
+
+        async function generate() {
+            if (!state.ready) return;
+            const seq = ++genSeq;
+            const files = {}, prev = {};
+            for (const ic of ICONS) files[ic.file] = await canvasToBlob(renderIcon(ic.size, ic.kind), 'image/png');
+            const icoPngs = [];
+            for (const s of ICO_SIZES) icoPngs.push(await canvasToBlob(renderIcon(s, 'any'), 'image/png'));
+            files['favicon.ico'] = await buildIco(icoPngs, ICO_SIZES);
+            prev['favicon.ico'] = icoPngs[icoPngs.length - 1];
+            if (state.isSvg) files['favicon.svg'] = new Blob([state.svgText], { type: 'image/svg+xml' });
+            if (seq !== genSeq) return;
+            state.files = files; state.prev = prev;
+            renderTiles();
+            renderCode();
+        }
+
+        function renderTiles() {
+            state.urls.forEach(u => URL.revokeObjectURL(u));
+            state.urls = [];
+            const list = [{ file: 'favicon.ico', size: 48, label: '16 / 32 / 48 px', note: '従来ブラウザ互換', prev: state.prev['favicon.ico'] }];
+            if (state.isSvg) list.push({ file: 'favicon.svg', size: 0, label: 'ベクター', note: 'モダンブラウザ用', prev: state.files['favicon.svg'] });
+            ICONS.forEach(ic => list.push({ file: ic.file, size: ic.size, label: `${ic.size}×${ic.size}`, note: ic.note, prev: state.files[ic.file] }));
+
+            const tiles = $('#tiles');
+            tiles.innerHTML = '';
+            for (const it of list) {
+                const url = URL.createObjectURL(it.prev);
+                state.urls.push(url);
+                const d = document.createElement('div');
+                d.className = 'tile';
+                d.innerHTML = '<div class="thumb checker"><img alt=""></div><div class="name"></div><div class="meta"></div><button type="button">保存</button>';
+                const img = $('img', d);
+                img.src = url;
+                if (it.size && it.size <= 48) img.style.imageRendering = 'pixelated';
+                $('.name', d).textContent = it.file;
+                $('.meta', d).textContent = `${it.label} · ${fmtBytes(state.files[it.file].size)}\n${it.note}`;
+                $('.meta', d).style.whiteSpace = 'pre-line';
+                $('button', d).addEventListener('click', () => downloadBlob(state.files[it.file], it.file));
+                tiles.appendChild(d);
+            }
+        }
+
+        function basePath() {
+            let b = val('basePath').trim() || '/';
+            if (!b.endsWith('/')) b += '/';
+            return b;
+        }
+        function manifestObj() {
+            const b = basePath();
+            const name = val('mName').trim() || 'My App';
+            return {
+                name,
+                short_name: val('mShort').trim() || name,
+                start_url: '/',
+                display: val('mDisplay'),
+                background_color: val('mBg'),
+                theme_color: val('mTheme'),
+                icons: [
+                    { src: b + 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+                    { src: b + 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+                    { src: b + 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+                ]
+            };
+        }
+        const manifestText = () => JSON.stringify(manifestObj(), null, 2);
+        function htmlSnippet() {
+            const b = basePath();
+            const L = [`<link rel="icon" href="${b}favicon.ico" sizes="any">`];
+            if (state.isSvg) L.push(`<link rel="icon" href="${b}favicon.svg" type="image/svg+xml">`);
+            L.push(`<link rel="icon" type="image/png" sizes="32x32" href="${b}favicon-32x32.png">`);
+            L.push(`<link rel="icon" type="image/png" sizes="16x16" href="${b}favicon-16x16.png">`);
+            L.push(`<link rel="apple-touch-icon" href="${b}apple-touch-icon.png">`);
+            L.push(`<link rel="manifest" href="${b}manifest.json">`);
+            L.push(`<meta name="theme-color" content="${val('mTheme')}">`);
+            return L.join('\n');
+        }
+        function renderCode() {
+            $('#manifestPreview').textContent = manifestText();
+            $('#htmlSnippet').textContent = htmlSnippet();
+        }
+
+        /* ---------- source loading ---------- */
+        function setSource(img, w, h, isSvg, name, svgText = '') {
+            Object.assign(state, { img, w, h, isSvg, name, svgText, ready: true });
+            $('#srcImg').src = img.src;
+            $('#srcName').textContent = name;
+            let meta = `${Math.round(w)}×${Math.round(h)}px` + (isSvg ? '（SVG）' : '');
+            if (!isSvg && Math.min(w, h) < 512) meta += ' ⚠ 512px未満は拡大され粗くなります';
+            if (Math.abs(w - h) > 1) meta += ' ／ 正方形ではありません';
+            $('#srcMeta').textContent = meta;
+            $('#srcInfo').hidden = false;
+            generate();
+        }
+        async function loadSvg(text, name) {
+            const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+            const svg = doc.documentElement;
+            if (!svg || svg.nodeName.toLowerCase() !== 'svg' || doc.querySelector('parsererror')) throw new Error('bad svg');
+            const vb = (svg.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+            let w = parseFloat(svg.getAttribute('width')), h = parseFloat(svg.getAttribute('height'));
+            const pct = /%/.test(svg.getAttribute('width') || '') || /%/.test(svg.getAttribute('height') || '');
+            if (vb.length === 4 && vb.every(isFinite) && (!(w > 0) || !(h > 0) || pct)) { w = vb[2]; h = vb[3]; }
+            if (!(w > 0) || !(h > 0)) { w = h = 512; }
+            const k = 1024 / Math.max(w, h);
+            svg.setAttribute('width', w * k);
+            svg.setAttribute('height', h * k);
+            if (!svg.getAttribute('xmlns')) svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            const sized = new XMLSerializer().serializeToString(svg);
+            const img = await loadImage(URL.createObjectURL(new Blob([sized], { type: 'image/svg+xml' })));
+            setSource(img, w, h, true, name, text);
+        }
+        async function loadFile(file) {
+            try {
+                if (file.type === 'image/svg+xml' || /\.svg$/i.test(file.name)) {
+                    await loadSvg(await file.text(), file.name);
+                } else {
+                    const img = await loadImage(URL.createObjectURL(file));
+                    setSource(img, img.naturalWidth, img.naturalHeight, false, file.name);
+                }
+            } catch (e) {
+                toast('画像を読み込めませんでした');
+            }
+        }
+        const loadSample = () => loadSvg(SAMPLE_SVG, 'sample.svg');
+
+        /* ---------- events ---------- */
+        setupDrop($('#dropzone'), $('#fileInput'), loadFile);
+        $('#btnSample').addEventListener('click', loadSample);
+        window.addEventListener('paste', e => {
+            const it = Array.from((e.clipboardData && e.clipboardData.items) || []).find(i => i.type.startsWith('image/'));
+            if (it) { const f = it.getAsFile(); if (f) loadFile(f); }
+        });
+
+        const scheduleGen = debounce(generate, 200);
+        function showVals() {
+            $('#padVal').textContent = val('pad') + '%';
+            $('#radiusVal').textContent = val('radius') + '%';
+        }
+        ['fit', 'pad', 'radius', 'keepAlpha', 'bg'].forEach(id => $('#' + id).addEventListener('input', () => { showVals(); scheduleGen(); }));
+        ['mName', 'mShort', 'mDisplay', 'mTheme', 'mBg', 'basePath'].forEach(id => $('#' + id).addEventListener('input', renderCode));
+
+        $('#btnCopyHtml').addEventListener('click', () => copyText(htmlSnippet()));
+        $('#btnCopyManifest').addEventListener('click', () => copyText(manifestText()));
+        $('#btnSaveManifest').addEventListener('click', () => downloadBlob(new Blob([manifestText()], { type: 'application/json' }), 'manifest.json'));
+        $('#btnZip').addEventListener('click', async () => {
+            if (!state.ready || !Object.keys(state.files).length) { toast('先に画像を読み込んでください'); return; }
+            try {
+                await loadScript(JSZIP_URL);
+                const zip = new JSZip();
+                Object.entries(state.files).forEach(([n, b]) => zip.file(n, b));
+                zip.file('manifest.json', manifestText());
+                downloadBlob(await zip.generateAsync({ type: 'blob' }), 'favicons.zip');
+            } catch (e) {
+                toast('ZIPの作成に失敗しました');
+            }
+        });
+
+        showVals();
+        renderCode();
+        initCommon({
+            beforeTour: async () => { if (!state.ready) await loadSample(); },
+            steps: () => [
+                { popover: { title: 'Favicon Generator', description: '1枚の画像から favicon.ico・Apple Touch Icon・PWA用アイコン・manifest.json をまとめて生成します。処理はすべてブラウザ内で完結します。' } },
+                { element: '#srcCard', popover: { title: '① 元画像', description: 'ドロップ・選択・Ctrl+V貼り付けのいずれかで読み込みます。SVGなら favicon.svg も出力されます。まず試すなら「サンプルで試す」へ。', side: 'right', align: 'start' } },
+                { element: '#settingsCard', popover: { title: '② デザイン調整', description: 'フィット方式・余白・角丸・背景色を調整できます。結果は右側にリアルタイムで反映されます。', side: 'right', align: 'start' } },
+                { element: '#manifestCard', popover: { title: '③ manifest.json の設定', description: 'アプリ名やテーマカラー、アイコンを置くパスを入力すると、manifest.json と <head> 用タグに反映されます。', side: 'right', align: 'start' } },
+                { element: '#previewCard', popover: { title: 'プレビュー', description: '生成された各サイズのアイコンです。個別に保存することもできます。', side: 'left', align: 'start' } },
+                { element: '#btnZip', popover: { title: 'ZIPで一括ダウンロード', description: 'アイコン一式と manifest.json をまとめて保存します。', side: 'bottom', align: 'end' } },
+                { element: '#snippetCard', popover: { title: 'HTML / manifest', description: '<head> に貼るタグと manifest.json の内容をコピーできます。', side: 'left', align: 'start' } },
+                { element: '#btnTheme', popover: { title: 'ライト / ダーク', description: '「自動（OS設定に追従）」「ライト」「ダーク」を順に切り替えます。', side: 'bottom', align: 'end' } },
+                { element: '#btnHelp', popover: { title: 'ツアーをもう一度', description: 'このボタンでいつでも再表示できます。URLに ?onBoarding=1 を付けて開いても始まります。', side: 'bottom', align: 'end' } }
+            ]
+        });
+    </script>
+</body>
+
+</html>
