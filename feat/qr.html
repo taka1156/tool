@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.css">
+<script>
+  // 初回描画前にテーマを適用（ちらつき防止）
+  try {
+    var t = localStorage.getItem('webtools:theme');
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+</script>
+
+<title>QR Code Generator</title>
+<style>
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+:root {
+  color-scheme: light;
+  --bg: #f5f6f8; --panel: #ffffff; --subtle: #f6f8fa; --hover: #eef0f3; --border: #dfe3e8;
+  --text: #1f2328; --muted: #656d76; --accent: #2563eb; --accent-weak: #e8f0fe; --code-bg: #f3f4f6;
+  --danger: #d1242f; --checker1: #ffffff; --checker2: #e3e6ea;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0d1117; --panel: #161b22; --subtle: #1c2330; --hover: #222b38; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #6ea8fe; --accent-weak: #1b2a45; --code-bg: #212a36;
+    --danger: #ff7b72; --checker1: #2a313c; --checker2: #222833;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d1117; --panel: #161b22; --subtle: #1c2330; --hover: #222b38; --border: #30363d;
+  --text: #e6edf3; --muted: #8b949e; --accent: #6ea8fe; --accent-weak: #1b2a45; --code-bg: #212a36;
+  --danger: #ff7b72; --checker1: #2a313c; --checker2: #222833;
+}
+
+html { height: 100%; }
+body {
+  margin: 0; min-height: 100%; background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
+  font-size: 14px; line-height: 1.6;
+}
+.app-header {
+  position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border);
+}
+.app-header h1 { font-size: 16px; margin: 0; font-weight: 700; }
+.spacer { flex: 1; }
+
+button, .btn {
+  font: inherit; font-size: 13px; color: var(--text); background: var(--panel);
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; cursor: pointer;
+  line-height: 1.3; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+}
+button:hover, .btn:hover { background: var(--hover); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+button.primary:hover { background: #1d4ed8; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+main.layout {
+  max-width: 1200px; margin: 0 auto; padding: 16px; display: grid;
+  grid-template-columns: minmax(300px, 420px) minmax(0, 1fr); gap: 16px; align-items: start;
+}
+@media (max-width: 860px) { main.layout { grid-template-columns: 1fr; } }
+.col { min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.card + .card { margin-top: 16px; }
+.card h2 { font-size: 13px; margin: 0 0 10px; color: var(--muted); letter-spacing: .04em; }
+.card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.card-head h2 { margin: 0; flex: 1; }
+
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.field:last-child { margin-bottom: 0; }
+.field > label, .label { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.row > .grow { flex: 1; min-width: 0; }
+input[type=text], input[type=number], input[type=url], input[type=password], textarea, select {
+  font: inherit; font-size: 14px; color: var(--text); background: var(--panel);
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; width: 100%;
+}
+textarea { resize: vertical; }
+input[type=color] {
+  width: 44px; height: 32px; padding: 0; border: 1px solid var(--border);
+  border-radius: 6px; background: var(--panel); cursor: pointer; flex: none;
+}
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.val { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; }
+.check { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.hint { font-size: 12px; color: var(--muted); }
+.error { color: var(--danger); font-size: 12px; white-space: pre-wrap; }
+pre.code {
+  margin: 0; padding: 10px 12px; background: var(--code-bg); border-radius: 8px; overflow: auto;
+  font-size: 12px; line-height: 1.55; white-space: pre;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Noto Sans Mono CJK JP", monospace;
+}
+.checker {
+  background-color: var(--checker1);
+  background-image:
+    linear-gradient(45deg, var(--checker2) 25%, transparent 25%, transparent 75%, var(--checker2) 75%),
+    linear-gradient(45deg, var(--checker2) 25%, transparent 25%, transparent 75%, var(--checker2) 75%);
+  background-size: 16px 16px; background-position: 0 0, 8px 8px;
+}
+.dropzone {
+  border: 2px dashed var(--border); border-radius: 10px; padding: 18px; text-align: center;
+  color: var(--muted); cursor: pointer; transition: .15s;
+}
+.dropzone:hover, .dropzone.drag { border-color: var(--accent); background: var(--accent-weak); color: var(--text); }
+
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+  background: #24292f; color: #fff; border: 1px solid #444c56; padding: 8px 14px; border-radius: 8px;
+  opacity: 0; pointer-events: none; transition: .2s; z-index: 1000; font-size: 13px; max-width: 90vw;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* driver.js をテーマに合わせる */
+.driver-popover { font-family: inherit; background: var(--panel); color: var(--text); }
+.driver-popover-title { color: var(--text); }
+.driver-popover-description, .driver-popover-progress-text { color: var(--muted); }
+.driver-popover-footer button { background: var(--panel); color: var(--text); border: 1px solid var(--border); text-shadow: none; }
+.driver-popover-footer button:hover { background: var(--hover); }
+.driver-popover-close-btn { color: var(--muted); }
+.driver-popover-arrow-side-left.driver-popover-arrow { border-left-color: var(--panel); }
+.driver-popover-arrow-side-right.driver-popover-arrow { border-right-color: var(--panel); }
+.driver-popover-arrow-side-top.driver-popover-arrow { border-top-color: var(--panel); }
+.driver-popover-arrow-side-bottom.driver-popover-arrow { border-bottom-color: var(--panel); }
+
+.top-wrap { max-width: 1200px; margin: 0 auto; padding: 16px 16px 0; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 14px; }
+.tabs button { flex: 1 1 auto; }
+.tabs button.active { background: var(--accent-weak); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#qrCanvas { display: block; margin: 0 auto; width: 100%; max-width: 480px; height: auto; image-rendering: pixelated; border: 1px solid var(--border); border-radius: 6px; }
+.out-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; justify-content: center; }
+.qr-info { text-align: center; margin-top: 10px; }
+.thumb { width: 96px; min-height: 96px; border-radius: 6px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; overflow: hidden; flex: none; }
+.thumb img { max-width: 100%; display: block; }
+.recv-img { display: flex; justify-content: center; padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
+.recv-img img { width: min(100%, 480px); height: auto; display: block; }
+#video { width: 100%; max-height: 420px; background: #000; border-radius: 8px; display: block; }
+.dropzone.small { padding: 12px; }
+</style>
+</head>
+<body>
+<header class="app-header">
+  <h1>🔳 QR Code Generator</h1>
+  <div class="spacer"></div>
+  <button id="btnTheme" type="button" title="テーマ切替（自動 / ライト / ダーク）">🌓 自動</button>
+  <button id="btnHelp" type="button" title="使い方ツアー">？</button>
+</header>
+
+<div class="top-wrap">
+  <section class="card" id="recvCard" hidden>
+    <div class="card-head"><h2>📥 受信した画像</h2><button type="button" id="btnRecvClose">閉じる</button></div>
+    <div class="recv-img checker"><img id="recvImg" alt="受信した画像"></div>
+    <div class="row" style="margin-top:10px">
+      <span class="hint grow" id="recvInfo"></span>
+      <a class="btn primary" id="btnRecvSave" download="image">保存</a>
+      <a class="btn" id="btnRecvOpen" target="_blank" rel="noopener">拡大表示</a>
+    </div>
+    <div class="hint" style="margin-top:6px">スマホでは「保存」が効かない場合、画像を長押しして保存してください。</div>
+  </section>
+</div>
+
+<main class="layout">
+  <div class="col">
+    <section class="card" id="modeCard">
+      <div class="tabs" id="modeTabs" role="tablist" aria-label="モード">
+        <button type="button" data-mode="text" class="active">テキスト/URL</button>
+        <button type="button" data-mode="wifi">Wi-Fi</button>
+        <button type="button" data-mode="vcard">連絡先</button>
+        <button type="button" data-mode="image">画像転送</button>
+        <button type="button" data-mode="scan">読み取り</button>
+      </div>
+
+      <div id="panelArea">
+        <div class="panel" data-panel="text">
+          <div class="field">
+            <label for="inText">テキスト / URL</label>
+            <textarea id="inText" rows="5" placeholder="https://example.com">https://example.com</textarea>
+          </div>
+        </div>
+
+        <div class="panel" data-panel="wifi" hidden>
+          <div class="field"><label for="wSsid">SSID</label><input type="text" id="wSsid" autocomplete="off"></div>
+          <div class="field"><label for="wPass">パスワード</label><input type="text" id="wPass" autocomplete="off"></div>
+          <div class="field">
+            <label for="wSec">セキュリティ</label>
+            <select id="wSec"><option value="WPA">WPA/WPA2/WPA3</option><option value="WEP">WEP</option><option value="nopass">なし</option></select>
+          </div>
+          <div class="check"><input type="checkbox" id="wHidden"><label for="wHidden">ステルスSSID（非公開ネットワーク）</label></div>
+        </div>
+
+        <div class="panel" data-panel="vcard" hidden>
+          <div class="field"><label for="vName">氏名</label><input type="text" id="vName"></div>
+          <div class="two">
+            <div class="field"><label for="vTel">電話</label><input type="text" id="vTel" inputmode="tel"></div>
+            <div class="field"><label for="vMail">メール</label><input type="text" id="vMail" inputmode="email"></div>
+          </div>
+          <div class="field"><label for="vOrg">会社・組織</label><input type="text" id="vOrg"></div>
+          <div class="field"><label for="vUrl">URL</label><input type="text" id="vUrl"></div>
+        </div>
+
+        <div class="panel" data-panel="image" hidden>
+          <div class="dropzone small" id="imgDrop" tabindex="0" role="button" aria-label="画像を選択">
+            🖼️ 画像をドロップ / クリックして選択
+          </div>
+          <input type="file" id="imgFile" accept="image/*" hidden>
+          <div class="field" style="margin-top:12px">
+            <label for="imgBudget">サイズ上限（大きいほどQRが細かくなります）</label>
+            <select id="imgBudget">
+              <option value="700">小：読み取りやすい（約400B）</option>
+              <option value="1400" selected>中：標準（約1KB）</option>
+              <option value="2600">大：高精細だが読み取り難（約1.9KB）</option>
+            </select>
+          </div>
+          <div class="check" style="margin-bottom:12px"><input type="checkbox" id="imgGray"><label for="imgGray">グレースケール（さらに小さくできます）</label></div>
+          <div class="field">
+            <label for="imgBase">開くページのURL（スマホからアクセスできる公開URL）</label>
+            <input type="url" id="imgBase" placeholder="https://example.com/feat/qr.html">
+          </div>
+          <div class="error" id="imgBaseWarn" hidden></div>
+          <div class="row" id="imgResult" hidden style="margin-top:8px">
+            <div class="checker thumb"><img id="imgPrev" alt="圧縮後のプレビュー"></div>
+            <div class="hint grow" id="imgStat"></div>
+          </div>
+          <div class="hint" style="margin-top:10px">
+            画像を極小サイズに圧縮してURLに埋め込み、QRにします。スマホのカメラで読み取ると、このページが開いて画像が表示されます。QRに入る量には限りがあるため、小さなアイコンやスクショの縮小版向けです。サーバーには送信されません。
+          </div>
+        </div>
+
+        <div class="panel" data-panel="scan" hidden>
+          <div class="row">
+            <button type="button" class="primary" id="btnCamStart">📷 カメラで読み取る</button>
+            <button type="button" id="btnCamStop" hidden>停止</button>
+            <button type="button" id="btnScanFile">画像ファイルから</button>
+          </div>
+          <input type="file" id="scanFile" accept="image/*" hidden>
+          <div class="field" style="margin-top:12px">
+            <label for="scanOut">読み取り結果</label>
+            <textarea id="scanOut" rows="4" readonly></textarea>
+          </div>
+          <div class="row">
+            <button type="button" id="btnScanCopy">コピー</button>
+            <a class="btn" id="scanOpen" target="_blank" rel="noopener noreferrer" hidden>リンクを開く</a>
+          </div>
+          <div class="hint" style="margin-top:10px">他の端末に表示した画像転送QRを読み取ると、画像として表示・保存できます。カメラには HTTPS 接続と許可が必要です。</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="designCard">
+      <h2>デザイン</h2>
+      <div class="two">
+        <div class="field">
+          <label for="qrSize">画像サイズ</label>
+          <select id="qrSize"><option value="256">256px</option><option value="384">384px</option><option value="512" selected>512px</option><option value="768">768px</option><option value="1024">1024px</option></select>
+        </div>
+        <div class="field">
+          <label for="qrMargin">余白（セル数）</label>
+          <select id="qrMargin"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4（推奨）</option><option value="6">6</option></select>
+        </div>
+        <div class="field"><label for="qrFg">QRの色</label><input type="color" id="qrFg" value="#000000"></div>
+        <div class="field"><label for="qrBg">背景色</label><input type="color" id="qrBg" value="#ffffff"></div>
+      </div>
+      <div class="field">
+        <label for="ecc">誤り訂正レベル</label>
+        <select id="ecc"><option value="L">L（約7%・容量大）</option><option value="M" selected>M（約15%）</option><option value="Q">Q（約25%）</option><option value="H">H（約30%）</option></select>
+        <div class="hint" id="eccNote" hidden>画像転送は容量を確保するため L 固定です。</div>
+      </div>
+      <div class="hint">読み取りの安定のため、前景は背景より濃い色にしてください。</div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="card" id="outCard">
+      <div class="card-head"><h2>QRコード</h2></div>
+      <canvas id="qrCanvas" width="1" height="1" hidden></canvas>
+      <div class="qr-info hint" id="qrInfo">内容を入力すると、ここにQRコードが表示されます</div>
+      <div class="error qr-info" id="qrError" hidden></div>
+      <div class="out-actions" id="outActions">
+        <button type="button" class="primary" id="btnPng">PNG保存</button>
+        <button type="button" id="btnSvg">SVG保存</button>
+        <button type="button" id="btnCopyImg">画像をコピー</button>
+        <button type="button" id="btnCopyText">内容をコピー</button>
+      </div>
+    </section>
+
+    <section class="card" id="scanCard" hidden>
+      <div class="card-head"><h2>カメラ</h2></div>
+      <video id="video" playsinline muted hidden></video>
+      <div class="hint qr-info" id="camState">「カメラで読み取る」を押すと、ここに映像が表示されます</div>
+    </section>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script>
+/* ===================== common utilities ===================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const lsGet = (k, d = null) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const debounce = (fn, ms = 150) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtBytes = n => n < 1024 ? n + ' B' : (n / 1024).toFixed(1) + ' KB';
+
+/* ---------- theme (auto / light / dark) ---------- */
+const THEME_KEY = 'webtools:theme';
+const THEMES = ['auto', 'light', 'dark'];
+const THEME_LABEL = { auto: '🌓 自動', light: '☀️ ライト', dark: '🌙 ダーク' };
+let theme = lsGet(THEME_KEY, 'auto');
+if (!THEMES.includes(theme)) theme = 'auto';
+const darkMQ = window.matchMedia('(prefers-color-scheme: dark)');
+const isDark = () => theme === 'dark' || (theme === 'auto' && darkMQ.matches);
+function applyTheme(t) {
+  theme = t;
+  if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', t);
+  const b = $('#btnTheme');
+  if (b) b.textContent = THEME_LABEL[t];
+  lsSet(THEME_KEY, t);
+  document.dispatchEvent(new Event('themechange'));
+}
+if (darkMQ.addEventListener) darkMQ.addEventListener('change', () => document.dispatchEvent(new Event('themechange')));
+
+/* ---------- toast / download / clipboard ---------- */
+let toastTimer;
+function toast(msg) {
+  let el = $('#toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast'; el.className = 'toast'; el.setAttribute('role', 'status');
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+function downloadBlob(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e2) {}
+    ta.remove();
+  }
+  toast('コピーしました');
+}
+async function copyImageFromCanvas(canvas) {
+  try {
+    const blob = await canvasToBlob(canvas, 'image/png');
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    toast('画像をコピーしました');
+  } catch (e) {
+    toast('この環境では画像のコピーができません。保存を使ってください');
+  }
+}
+
+/* ---------- image / canvas helpers ---------- */
+const canvasToBlob = (canvas, type = 'image/png', q) => new Promise(r => canvas.toBlob(r, type, q));
+function loadImage(url) {
+  return new Promise((res, rej) => {
+    const i = new Image();
+    i.onload = () => res(i);
+    i.onerror = () => rej(new Error('image load failed'));
+    i.src = url;
+  });
+}
+function roundRectPath(ctx, x, y, w, h, r) {
+  r = Math.max(0, Math.min(r, w / 2, h / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+/* 大きく縮小するときは段階的に半分にして画質を保つ */
+function resample(src, sw, sh, dw, dh) {
+  let cur = src, cw = sw, ch = sh;
+  while (cw / 2 >= dw && ch / 2 >= dh) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(cw / 2));
+    c.height = Math.max(1, Math.round(ch / 2));
+    const x = c.getContext('2d');
+    x.imageSmoothingQuality = 'high';
+    x.drawImage(cur, 0, 0, c.width, c.height);
+    cur = c; cw = c.width; ch = c.height;
+  }
+  const out = document.createElement('canvas');
+  out.width = Math.max(1, Math.round(dw));
+  out.height = Math.max(1, Math.round(dh));
+  const o = out.getContext('2d');
+  o.imageSmoothingQuality = 'high';
+  o.drawImage(cur, 0, 0, out.width, out.height);
+  return out;
+}
+
+/* ---------- file drop ---------- */
+function setupDrop(zone, input, cb) {
+  zone.addEventListener('click', () => input.click());
+  zone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+  ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('drag'); }));
+  zone.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) cb(f); });
+  input.addEventListener('change', () => { const f = input.files[0]; if (f) cb(f); input.value = ''; });
+}
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => e.preventDefault());
+
+/* ---------- lazy script loader ---------- */
+const _scripts = {};
+function loadScript(src) {
+  if (!_scripts[src]) {
+    _scripts[src] = new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = res;
+      s.onerror = () => { delete _scripts[src]; rej(new Error('読み込みに失敗しました: ' + src)); };
+      document.head.appendChild(s);
+    });
+  }
+  return _scripts[src];
+}
+
+/* ---------- init: theme button + driver.js onboarding ---------- */
+const DRIVER_JS = 'https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.js.iife.js';
+function initCommon({ steps, beforeTour } = {}) {
+  applyTheme(theme);
+  const bt = $('#btnTheme');
+  if (bt) bt.addEventListener('click', () => applyTheme(THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]));
+
+  const runTour = async () => {
+    try { await loadScript(DRIVER_JS); } catch (e) { toast('ツアーの読み込みに失敗しました'); return; }
+    if (beforeTour) await beforeTour();
+    const { driver } = window.driver.js;
+    driver({
+      showProgress: true, allowClose: true,
+      nextBtnText: '次へ', prevBtnText: '戻る', doneBtnText: '完了',
+      progressText: '{{current}} / {{total}}',
+      steps: steps ? steps() : []
+    }).drive();
+  };
+  const bh = $('#btnHelp');
+  if (bh) bh.addEventListener('click', runTour);
+
+  const params = new URLSearchParams(location.search);
+  if (params.get('onBoarding') === '1') {
+    params.delete('onBoarding');
+    const qs = params.toString();
+    try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash); } catch (e) {}
+    if (document.readyState === 'complete') runTour();
+    else window.addEventListener('load', runTour);
+  }
+}
+
+
+/* ===================== QR code generator ===================== */
+const JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+const LS_BASE = 'webtools:qr:base';
+// UTF-8 で符号化（日本語対応）
+qrcode.stringToBytes = s => Array.from(new TextEncoder().encode(s));
+
+let mode = 'text';
+let lastQR = null;      // { qr, count, margin, text }
+let stream = null, scanning = false;
+let recvUrl = null;
+
+/* ---------- payload builders ---------- */
+const wEsc = v => String(v).replace(/([\\;,:"])/g, '\\$1');
+function wifiPayload() {
+  const ssid = $('#wSsid').value;
+  if (!ssid) return '';
+  const sec = $('#wSec').value;
+  let t = `WIFI:T:${sec};S:${wEsc(ssid)};`;
+  if (sec !== 'nopass') t += `P:${wEsc($('#wPass').value)};`;
+  if ($('#wHidden').checked) t += 'H:true;';
+  return t + ';';
+}
+const vEsc = v => String(v).replace(/([\\,;])/g, '\\$1').replace(/\r?\n/g, '\\n');
+function vcardPayload() {
+  const name = $('#vName').value.trim();
+  const tel = $('#vTel').value.trim(), mail = $('#vMail').value.trim();
+  const org = $('#vOrg').value.trim(), url = $('#vUrl').value.trim();
+  if (!name && !tel && !mail && !org && !url) return '';
+  const L = ['BEGIN:VCARD', 'VERSION:3.0', `N:${vEsc(name)};;;;`, `FN:${vEsc(name)}`];
+  if (org) L.push(`ORG:${vEsc(org)}`);
+  if (tel) L.push(`TEL:${vEsc(tel)}`);
+  if (mail) L.push(`EMAIL:${vEsc(mail)}`);
+  if (url) L.push(`URL:${url}`);
+  L.push('END:VCARD');
+  return L.join('\n');
+}
+
+/* ---------- QR rendering ---------- */
+function setOutButtons(on) { $$('#outActions button').forEach(b => b.disabled = !on); }
+function renderQR(text, ecc) {
+  const cv = $('#qrCanvas'), info = $('#qrInfo'), err = $('#qrError');
+  err.hidden = true; lastQR = null; setOutButtons(false);
+  if (!text) { cv.hidden = true; info.textContent = '内容を入力すると、ここにQRコードが表示されます'; return; }
+  let qr;
+  try {
+    qr = qrcode(0, ecc);
+    qr.addData(text, 'Byte');
+    qr.make();
+  } catch (e) {
+    cv.hidden = true; info.textContent = '';
+    err.textContent = 'データが大きすぎてQRコードにできません。短くするか、誤り訂正レベルを下げてください。';
+    err.hidden = false;
+    return;
+  }
+  const size = +$('#qrSize').value, margin = +$('#qrMargin').value;
+  const count = qr.getModuleCount(), total = count + margin * 2;
+  const cell = Math.max(1, Math.floor(size / total));
+  cv.width = cv.height = cell * total;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = $('#qrBg').value; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = $('#qrFg').value;
+  for (let r = 0; r < count; r++) for (let c = 0; c < count; c++) {
+    if (qr.isDark(r, c)) ctx.fillRect((c + margin) * cell, (r + margin) * cell, cell, cell);
+  }
+  cv.hidden = false;
+  lastQR = { qr, count, margin, text };
+  const bytes = new TextEncoder().encode(text).length;
+  info.textContent = `バージョン ${(count - 17) / 4}（${count}×${count}セル）・${bytes}バイト`;
+  setOutButtons(true);
+}
+function qrSvg() {
+  if (!lastQR) return '';
+  const { qr, count, margin } = lastQR, total = count + margin * 2;
+  let d = '';
+  for (let r = 0; r < count; r++) for (let c = 0; c < count; c++) if (qr.isDark(r, c)) d += `M${c + margin} ${r + margin}h1v1h-1z`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" width="${total * 8}" height="${total * 8}" shape-rendering="crispEdges">` +
+    `<rect width="${total}" height="${total}" fill="${$('#qrBg').value}"/><path d="${d}" fill="${$('#qrFg').value}"/></svg>`;
+}
+
+/* ---------- image transfer ---------- */
+const imgState = { src: null, sw: 0, sh: 0, result: null, seq: 0, error: '' };
+let webpOK = null;
+async function detectWebp() {
+  if (webpOK !== null) return webpOK;
+  const c = document.createElement('canvas'); c.width = c.height = 2;
+  const b = await canvasToBlob(c, 'image/webp', 0.5);
+  webpOK = !!(b && b.type === 'image/webp');
+  return webpOK;
+}
+const baseUrl = () => $('#imgBase').value.trim();
+function b64urlEncode(buf) {
+  const a = new Uint8Array(buf); let s = '';
+  for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function b64urlDecode(str) {
+  const b = str.replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(b + '='.repeat((4 - b.length % 4) % 4));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function checkBaseWarn() {
+  const w = $('#imgBaseWarn'), b = baseUrl();
+  let msg = '';
+  if (!b) msg = 'スマホから開けるページのURLを入力してください。';
+  else if (!/^https?:\/\//i.test(b)) msg = 'http:// か https:// から始まるURLにしてください。';
+  else if (/^https?:\/\/(localhost|127\.|192\.168\.|10\.)/i.test(b)) msg = 'ローカルのURLは、同じネットワーク内の端末からしか開けません。';
+  w.textContent = msg; w.hidden = !msg;
+  return !msg || /ローカル/.test(msg);
+}
+async function compressImage() {
+  const seq = ++imgState.seq;
+  imgState.result = null; imgState.error = '';
+  if (!imgState.src) return;
+  const base = baseUrl();
+  const limit = +$('#imgBudget').value;
+  const maxBytes = Math.floor((limit - (base.length + 5 + 2)) * 3 / 4);
+  if (maxBytes < 150) { imgState.error = '開くページのURLが長すぎるか、空です。'; return; }
+  const useWebp = await detectWebp();
+  const mime = useWebp ? 'image/webp' : 'image/jpeg', code = useWebp ? 'w' : 'j';
+  const gray = $('#imgGray').checked;
+  const maxSide = Math.max(imgState.sw, imgState.sh);
+  const top = Math.min(maxSide, 320);
+  const edges = Array.from(new Set([top, ...[256, 224, 192, 160, 144, 128, 112, 96, 80, 72, 64, 56, 48, 40, 32, 24].filter(e => e < top)]));
+  for (const qs of [[0.7, 0.5, 0.35], [0.22, 0.12]]) {
+    for (const e of edges) {
+      const k = e / maxSide;
+      const w = Math.max(1, Math.round(imgState.sw * k)), h = Math.max(1, Math.round(imgState.sh * k));
+      const small = resample(imgState.src, imgState.sw, imgState.sh, w, h);
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(small, 0, 0);
+      if (gray) {
+        const d = ctx.getImageData(0, 0, w, h), p = d.data;
+        for (let i = 0; i < p.length; i += 4) { const y = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2]; p[i] = p[i + 1] = p[i + 2] = y; }
+        ctx.putImageData(d, 0, 0);
+      }
+      for (const q of qs) {
+        const blob = await canvasToBlob(c, mime, q);
+        if (seq !== imgState.seq) return;
+        if (blob && blob.size <= maxBytes) {
+          imgState.result = { blob, w, h, mime, code, b64: b64urlEncode(await blob.arrayBuffer()) };
+          return;
+        }
+      }
+    }
+  }
+  imgState.error = 'この上限では収まりませんでした。サイズ上限を上げるか、別の画像を試してください。';
+}
+function imagePayload() {
+  const r = imgState.result;
+  if (!r || !baseUrl()) return '';
+  return `${baseUrl()}#img=${r.code}.${r.b64}`;
+}
+function showImageStat() {
+  const r = imgState.result, box = $('#imgResult');
+  if (!imgState.src) { box.hidden = true; return; }
+  box.hidden = false;
+  if (r) {
+    $('#imgPrev').src = URL.createObjectURL(r.blob);
+    $('#imgStat').textContent = `${r.w}×${r.h}px・${fmtBytes(r.blob.size)}（${r.mime === 'image/webp' ? 'WebP' : 'JPEG'}）`;
+  } else {
+    $('#imgPrev').removeAttribute('src');
+    $('#imgStat').textContent = imgState.error || '圧縮中…';
+  }
+}
+async function refreshImage() {
+  checkBaseWarn();
+  lsSet(LS_BASE, baseUrl());
+  if (imgState.src) { $('#imgStat').textContent = '圧縮中…'; $('#imgResult').hidden = false; await compressImage(); }
+  showImageStat();
+  update();
+}
+async function loadImageFile(file) {
+  try {
+    const img = await loadImage(URL.createObjectURL(file));
+    Object.assign(imgState, { src: img, sw: img.naturalWidth, sh: img.naturalHeight });
+    await refreshImage();
+  } catch (e) { toast('画像を読み込めませんでした'); }
+}
+
+/* ---------- receive (open URL / scan result) ---------- */
+function parsePayload(str) {
+  const i = str.indexOf('#img=');
+  if (i < 0) return null;
+  const m = /^([wjp])\.([A-Za-z0-9_-]+)/.exec(str.slice(i + 5));
+  if (!m) return null;
+  try {
+    const mime = { w: 'image/webp', j: 'image/jpeg', p: 'image/png' }[m[1]];
+    return { blob: new Blob([b64urlDecode(m[2])], { type: mime }), mime };
+  } catch (e) { return null; }
+}
+function showReceived(p) {
+  if (recvUrl) URL.revokeObjectURL(recvUrl);
+  recvUrl = URL.createObjectURL(p.blob);
+  const img = $('#recvImg');
+  img.onload = () => { $('#recvInfo').textContent = `${img.naturalWidth}×${img.naturalHeight}px・${fmtBytes(p.blob.size)}`; };
+  img.src = recvUrl;
+  const ext = p.mime === 'image/webp' ? 'webp' : p.mime === 'image/png' ? 'png' : 'jpg';
+  $('#btnRecvSave').href = recvUrl; $('#btnRecvSave').download = 'qr-image.' + ext;
+  $('#btnRecvOpen').href = recvUrl;
+  $('#recvCard').hidden = false;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+$('#btnRecvClose').addEventListener('click', () => { $('#recvCard').hidden = true; });
+function checkHash() {
+  const p = location.hash.startsWith('#img=') ? parsePayload(location.hash) : null;
+  if (p) showReceived(p);
+}
+window.addEventListener('hashchange', checkHash);
+
+/* ---------- scanner ---------- */
+const scanCv = document.createElement('canvas');
+const scanCtx = scanCv.getContext('2d', { willReadFrequently: true });
+function handleScanResult(text) {
+  $('#scanOut').value = text;
+  const a = $('#scanOpen');
+  if (/^https?:\/\//i.test(text)) { a.href = text; a.hidden = false; } else a.hidden = true;
+  const p = parsePayload(text);
+  if (p) showReceived(p);
+  toast('読み取りました');
+}
+async function startCam() {
+  try { await loadScript(JSQR_URL); } catch (e) { toast('読み取りライブラリの読み込みに失敗しました'); return; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+  } catch (e) { toast('カメラを起動できませんでした（HTTPSと許可が必要です）'); return; }
+  const v = $('#video');
+  v.srcObject = stream; v.hidden = false;
+  try { await v.play(); } catch (e) {}
+  scanning = true;
+  $('#camState').textContent = 'QRコードを枠内に映してください';
+  $('#btnCamStart').hidden = true; $('#btnCamStop').hidden = false;
+  requestAnimationFrame(tick);
+}
+function stopCam() {
+  scanning = false;
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  const v = $('#video'); v.srcObject = null; v.hidden = true;
+  $('#btnCamStart').hidden = false; $('#btnCamStop').hidden = true;
+  $('#camState').textContent = '「カメラで読み取る」を押すと、ここに映像が表示されます';
+}
+function tick() {
+  if (!scanning) return;
+  const v = $('#video');
+  if (v.readyState >= 2 && v.videoWidth) {
+    const k = Math.min(1, 1280 / v.videoWidth);
+    scanCv.width = Math.round(v.videoWidth * k); scanCv.height = Math.round(v.videoHeight * k);
+    scanCtx.drawImage(v, 0, 0, scanCv.width, scanCv.height);
+    const d = scanCtx.getImageData(0, 0, scanCv.width, scanCv.height);
+    const code = jsQR(d.data, d.width, d.height, { inversionAttempts: 'dontInvert' });
+    if (code && code.data) { stopCam(); handleScanResult(code.data); return; }
+  }
+  requestAnimationFrame(tick);
+}
+async function scanFromFile(file) {
+  try {
+    await loadScript(JSQR_URL);
+    const url = URL.createObjectURL(file);
+    const img = await loadImage(url);
+    const k = Math.min(1, 2000 / Math.max(img.naturalWidth, img.naturalHeight));
+    scanCv.width = Math.round(img.naturalWidth * k); scanCv.height = Math.round(img.naturalHeight * k);
+    scanCtx.drawImage(img, 0, 0, scanCv.width, scanCv.height);
+    URL.revokeObjectURL(url);
+    const d = scanCtx.getImageData(0, 0, scanCv.width, scanCv.height);
+    const code = jsQR(d.data, d.width, d.height, { inversionAttempts: 'attemptBoth' });
+    if (code && code.data) handleScanResult(code.data); else toast('QRコードが見つかりませんでした');
+  } catch (e) { toast('読み取りに失敗しました'); }
+}
+
+/* ---------- mode / update ---------- */
+function setMode(m) {
+  if (mode === 'scan' && m !== 'scan') stopCam();
+  mode = m;
+  $$('#modeTabs button').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+  $$('.panel').forEach(p => p.hidden = p.dataset.panel !== m);
+  const scan = m === 'scan';
+  $('#outCard').hidden = scan; $('#designCard').hidden = scan; $('#scanCard').hidden = !scan;
+  $('#ecc').disabled = m === 'image'; $('#eccNote').hidden = m !== 'image';
+  if (m === 'image') refreshImage(); else update();
+}
+function update() {
+  if (mode === 'scan') return;
+  let text = '';
+  if (mode === 'text') text = $('#inText').value;
+  else if (mode === 'wifi') text = wifiPayload();
+  else if (mode === 'vcard') text = vcardPayload();
+  else if (mode === 'image') text = imagePayload();
+  renderQR(text, mode === 'image' ? 'L' : $('#ecc').value);
+  if (mode === 'image' && !text) {
+    $('#qrInfo').textContent = !imgState.src ? '画像を選択すると、ここにQRコードが表示されます' : (imgState.error || '');
+  }
+}
+const scheduleUpdate = debounce(update, 120);
+
+$('#modeTabs').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (b) setMode(b.dataset.mode); });
+['inText', 'wSsid', 'wPass', 'wSec', 'wHidden', 'vName', 'vTel', 'vMail', 'vOrg', 'vUrl', 'qrSize', 'qrMargin', 'qrFg', 'qrBg', 'ecc']
+  .forEach(id => $('#' + id).addEventListener('input', scheduleUpdate));
+setupDrop($('#imgDrop'), $('#imgFile'), loadImageFile);
+$('#imgBudget').addEventListener('change', refreshImage);
+$('#imgGray').addEventListener('change', refreshImage);
+$('#imgBase').addEventListener('input', debounce(refreshImage, 300));
+
+$('#btnPng').addEventListener('click', async () => { const b = await canvasToBlob($('#qrCanvas'), 'image/png'); if (b) downloadBlob(b, 'qrcode.png'); });
+$('#btnSvg').addEventListener('click', () => downloadBlob(new Blob([qrSvg()], { type: 'image/svg+xml' }), 'qrcode.svg'));
+$('#btnCopyImg').addEventListener('click', () => copyImageFromCanvas($('#qrCanvas')));
+$('#btnCopyText').addEventListener('click', () => { if (lastQR) copyText(lastQR.text); });
+
+$('#btnCamStart').addEventListener('click', startCam);
+$('#btnCamStop').addEventListener('click', stopCam);
+$('#btnScanFile').addEventListener('click', () => $('#scanFile').click());
+$('#scanFile').addEventListener('change', e => { const f = e.target.files[0]; if (f) scanFromFile(f); e.target.value = ''; });
+$('#btnScanCopy').addEventListener('click', () => { const v = $('#scanOut').value; if (v) copyText(v); });
+
+/* ---------- init ---------- */
+const defBase = /^https?:$/.test(location.protocol) ? location.origin + location.pathname : '';
+$('#imgBase').value = lsGet(LS_BASE, '') || defBase;
+update();
+checkHash();
+initCommon({
+  beforeTour: async () => { if (mode !== 'text') setMode('text'); },
+  steps: () => [
+    { popover: { title: 'QR Code Generator', description: 'テキスト・Wi-Fi・連絡先のQR作成に加えて、画像をQRにして端末間で受け渡せる「画像転送」と、QRの「読み取り」を備えています。' } },
+    { element: '#modeTabs', popover: { title: 'モード切替', description: '「画像転送」は、画像を極小サイズに圧縮してURLに埋め込みQR化します。スマホのカメラで読むとこのページが開き、画像が表示・保存できます（PC→スマホ）。「読み取り」ではカメラやQR画像ファイルから読み取れます（スマホ→PC）。', side: 'right', align: 'start' } },
+    { element: '#panelArea', popover: { title: '入力エリア', description: '選んだモードに応じた入力欄が表示されます。入力するとQRコードがリアルタイムに更新されます。', side: 'right', align: 'start' } },
+    { element: '#designCard', popover: { title: 'デザイン', description: 'サイズ・余白・色・誤り訂正レベルを調整できます。画像転送では容量確保のため、誤り訂正はL固定になります。', side: 'right', align: 'start' } },
+    { element: '#outCard', popover: { title: 'QRコード', description: '生成結果です。バージョン（細かさ）とバイト数も確認できます。', side: 'left', align: 'start' } },
+    { element: '#btnPng', popover: { title: '保存・コピー', description: 'PNG / SVG で保存、画像のコピー、入力内容のコピーができます。', side: 'top', align: 'center' } },
+    { element: '#btnTheme', popover: { title: 'ライト / ダーク', description: '「自動（OS設定に追従）」「ライト」「ダーク」を順に切り替えます。QRコード自体の色は変わりません。', side: 'bottom', align: 'end' } },
+    { element: '#btnHelp', popover: { title: 'ツアーをもう一度', description: 'このボタンでいつでも再表示できます。URLに ?onBoarding=1 を付けて開いても始まります。', side: 'bottom', align: 'end' } }
+  ]
+});
+</script>
+</body>
+</html>

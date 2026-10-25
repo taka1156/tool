@@ -41,5 +41,10 @@ const tools = [
     path: 'ogp_gen.html',
     description: 'タイトルと背景から 1200×630 のOGP画像と meta タグを生成'
   },
-
+  {
+    href: './feat/qr.html',
+    name: 'qr',
+    path: 'qr.html',
+    description: 'QRコード生成・読み取り・画像転送（PC⇄スマホ）'
+  }
 ];
