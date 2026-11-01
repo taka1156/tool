@@ -1,0 +1,46 @@
+name: Build tool index
+
+# ツール（docs/feat/*.html）が push されたら、一覧と各ページの canonical・アイコン・OGP タグを再生成してコミットする。
+# GitHub の画面から HTML を直接アップロードしても一覧に載る。
+on:
+  push:
+    branches: [master]
+    paths:
+      - "docs/**/*.html"
+      - "docs/CNAME" # ドメインが変わったら canonical / OGP の URL も更新
+      - "scripts/tool.py"
+      - "docs/assets/ogp.png" # 差し替えたら og:image の ?v= を更新
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # tool:date がないツールの日付を git 履歴から推定するため
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Lint tools (report only)
+        run: python3 scripts/tool.py lint --all || true
+
+      - name: Build index
+        run: python3 scripts/tool.py build
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- docs; then
+            echo "docs は最新です"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git commit -m "Rebuild tool index"
+          git push

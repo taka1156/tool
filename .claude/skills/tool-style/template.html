@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="一覧に出る説明（何ができるツールかを 1 文で）">
+    <title>ツール名</title>
+    <meta name="tool:name" content="short-name">
+    <meta name="tool:date" content="YYYY-MM-DD">
+    <meta name="color-scheme" content="light dark">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.css">
+    <script>
+        // 初回描画前にテーマを適用（ちらつき防止）
+        try {
+            var t = localStorage.getItem('webtools:theme');
+            if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+        } catch (e) { }
+    </script>
+    <style>
+        [hidden] {
+            display: none !important;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            color-scheme: light;
+            --bg: #f5f6f8;
+            --panel: #ffffff;
+            --subtle: #f6f8fa;
+            --hover: #eef0f3;
+            --border: #dfe3e8;
+            --text: #1f2328;
+            --muted: #656d76;
+            --accent: #2563eb;
+            --accent-weak: #e8f0fe;
+            --code-bg: #f3f4f6;
+            --danger: #d1242f;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                color-scheme: dark;
+                --bg: #0d1117;
+                --panel: #161b22;
+                --subtle: #1c2330;
+                --hover: #222b38;
+                --border: #30363d;
+                --text: #e6edf3;
+                --muted: #8b949e;
+                --accent: #6ea8fe;
+                --accent-weak: #1b2a45;
+                --code-bg: #212a36;
+                --danger: #ff7b72;
+            }
+        }
+
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --bg: #0d1117;
+            --panel: #161b22;
+            --subtle: #1c2330;
+            --hover: #222b38;
+            --border: #30363d;
+            --text: #e6edf3;
+            --muted: #8b949e;
+            --accent: #6ea8fe;
+            --accent-weak: #1b2a45;
+            --code-bg: #212a36;
+            --danger: #ff7b72;
+        }
+
+        html {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .app-header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .app-header h1 {
+            font-size: 16px;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .spacer {
+            flex: 1;
+        }
+
+        button,
+        .btn {
+            font: inherit;
+            font-size: 13px;
+            color: var(--text);
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            line-height: 1.3;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:hover,
+        .btn:hover {
+            background: var(--hover);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #fff;
+        }
+
+        button.primary:hover {
+            background: #1d4ed8;
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 1px;
+        }
+
+        main.layout {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 16px;
+            display: grid;
+            grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+
+        @media (max-width: 860px) {
+            main.layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .col {
+            min-width: 0;
+            display: grid;
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+
+        .card h2 {
+            font-size: 14px;
+            margin: 0 0 10px;
+        }
+
+        .field {
+            display: grid;
+            gap: 4px;
+            margin-bottom: 10px;
+        }
+
+        .field label {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            font: inherit;
+            font-size: 13px;
+            color: var(--text);
+            background: var(--subtle);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            width: 100%;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        pre {
+            margin: 0;
+            padding: 10px 12px;
+            background: var(--code-bg);
+            border-radius: 6px;
+            overflow-x: auto;
+            font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translate(-50%, 20px);
+            background: var(--text);
+            color: var(--bg);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .2s, transform .2s;
+            z-index: 100;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        /* driver.js をテーマに合わせる */
+        .driver-popover {
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .driver-popover-title {
+            font-size: 15px;
+        }
+
+        .driver-popover-description {
+            color: var(--muted);
+        }
+    </style>
+</head>
+
+<body>
+    <header class="app-header">
+        <h1>🛠️ Tool Name</h1>
+        <div class="spacer"></div>
+        <button id="btnTheme" type="button" title="テーマ切替（自動 / ライト / ダーク）">🌓 自動</button>
+        <button id="btnHelp" type="button" title="使い方ツアー">？</button>
+    </header>
+
+    <main class="layout">
+        <div class="col">
+            <section class="card" id="inputCard">
+                <h2>① 入力</h2>
+                <div class="field">
+                    <label for="src">入力</label>
+                    <textarea id="src" rows="6"></textarea>
+                </div>
+            </section>
+        </div>
+        <div class="col">
+            <section class="card" id="outputCard">
+                <h2>② 結果</h2>
+                <pre id="out"></pre>
+                <div style="margin-top:10px">
+                    <button id="btnCopy" type="button" class="primary">コピー</button>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        /* ===================== common utilities ===================== */
+        const $ = (s, r = document) => r.querySelector(s);
+        const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+        const lsGet = (k, d = null) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } };
+        const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { } };
+        const debounce = (fn, ms = 150) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+
+        /* ---------- theme (auto / light / dark) ---------- */
+        const THEME_KEY = 'webtools:theme';
+        const THEMES = ['auto', 'light', 'dark'];
+        const THEME_LABEL = { auto: '🌓 自動', light: '☀️ ライト', dark: '🌙 ダーク' };
+        let theme = lsGet(THEME_KEY, 'auto');
+        if (!THEMES.includes(theme)) theme = 'auto';
+        function applyTheme(t) {
+            theme = t;
+            if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+            else document.documentElement.setAttribute('data-theme', t);
+            const b = $('#btnTheme');
+            if (b) b.textContent = THEME_LABEL[t];
+            lsSet(THEME_KEY, t);
+            document.dispatchEvent(new Event('themechange'));
+        }
+
+        /* ---------- toast / clipboard ---------- */
+        let toastTimer;
+        function toast(msg) {
+            let el = $('#toast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'toast'; el.className = 'toast'; el.setAttribute('role', 'status');
+                document.body.appendChild(el);
+            }
+            el.textContent = msg;
+            el.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+        }
+        async function copyText(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+            } catch (e) {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); } catch (e2) { }
+                ta.remove();
+            }
+            toast('コピーしました');
+        }
+
+        /* ---------- lazy script loader ---------- */
+        const _scripts = {};
+        function loadScript(src) {
+            if (!_scripts[src]) {
+                _scripts[src] = new Promise((res, rej) => {
+                    const s = document.createElement('script');
+                    s.src = src;
+                    s.onload = res;
+                    s.onerror = () => { delete _scripts[src]; rej(new Error('読み込みに失敗しました: ' + src)); };
+                    document.head.appendChild(s);
+                });
+            }
+            return _scripts[src];
+        }
+
+        /* ---------- init: theme button + driver.js onboarding ---------- */
+        const DRIVER_JS = 'https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.js.iife.js';
+        function initCommon({ steps } = {}) {
+            applyTheme(theme);
+            const bt = $('#btnTheme');
+            if (bt) bt.addEventListener('click', () => applyTheme(THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]));
+
+            const runTour = async () => {
+                try { await loadScript(DRIVER_JS); } catch (e) { toast('ツアーの読み込みに失敗しました'); return; }
+                const { driver } = window.driver.js;
+                driver({
+                    showProgress: true, allowClose: true,
+                    nextBtnText: '次へ', prevBtnText: '戻る', doneBtnText: '完了',
+                    progressText: '{{current}} / {{total}}',
+                    steps: steps ? steps() : []
+                }).drive();
+            };
+            const bh = $('#btnHelp');
+            if (bh) bh.addEventListener('click', runTour);
+
+            const params = new URLSearchParams(location.search);
+            if (params.get('onBoarding') === '1') {
+                params.delete('onBoarding');
+                const qs = params.toString();
+                try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash); } catch (e) { }
+                if (document.readyState === 'complete') runTour();
+                else window.addEventListener('load', runTour);
+            }
+        }
+
+        /* ===================== このツール固有の処理 ===================== */
+        const KEY = 'webtools:short-name'; // 設定の自動保存キー（webtools:<ツール名>）
+        const src = $('#src');
+        const out = $('#out');
+        src.value = lsGet(KEY, '');
+
+        const update = debounce(() => {
+            out.textContent = src.value;
+            lsSet(KEY, src.value);
+        });
+        src.addEventListener('input', update);
+        $('#btnCopy').addEventListener('click', () => copyText(out.textContent));
+        update();
+
+        initCommon({
+            steps: () => [
+                { popover: { title: 'Tool Name', description: 'このツールでできることを 1〜2 文で。' } },
+                { element: '#inputCard', popover: { title: '① 入力', description: '何を入れるか。', side: 'right', align: 'start' } },
+                { element: '#outputCard', popover: { title: '② 結果', description: '何が出てくるか。', side: 'left', align: 'start' } },
+                { element: '#btnTheme', popover: { title: 'ライト / ダーク', description: '「自動」「ライト」「ダーク」を順に切り替えます。', side: 'bottom', align: 'end' } },
+                { element: '#btnHelp', popover: { title: 'ツアーをもう一度', description: 'このボタンでいつでも再表示できます。URLに ?onBoarding=1 を付けて開いても始まります。', side: 'bottom', align: 'end' } }
+            ]
+        });
+    </script>
+<style>@media print{#tool-backlink{display:none!important}}</style><footer id="tool-backlink" style="flex:none;max-width:1200px;margin:0 auto;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));text-align:center"><a href="../index.html" style="display:inline-block;padding:6px 14px;border-radius:999px;background:rgba(127,127,127,.15);color:inherit;font:600 12px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.08em;text-decoration:none;opacity:.85">&larr; 一覧に戻る</a></footer>
+</body>
+
+</html>
