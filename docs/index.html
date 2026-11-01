@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="画像加工・設定ファイル生成・エディターなど、ブラウザだけで使える自作ツール集" />
+  <title>tool</title>
+<!-- tool:head（scripts/tool.py が自動生成。手で編集しない） -->
+<link rel="canonical" href="https://tool.taka1156.site/">
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="tool">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="tool">
+<meta property="og:title" content="tool | taka1156">
+<meta property="og:description" content="画像加工・設定ファイル生成・エディターなど、ブラウザだけで使える自作ツール集">
+<meta property="og:url" content="https://tool.taka1156.site/">
+<meta property="og:image" content="https://tool.taka1156.site/assets/ogp.png?v=d6b7431c">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Webツール集">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /tool:head -->
+  <style>
+    :root {
+      --bg: #15171b;
+      --panel: #1a1d22;
+      --panel2: #1f232a;
+      --line: #262a31;
+      --text: #e8eaed;
+      --muted: #868c98;
+      --accent: #f6821f;
+      --accent-dim: rgba(246, 130, 31, .14);
+      --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * {
+      box-sizing: inherit
+    }
+
+    html,
+    body {
+      height: 100%
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6
+    }
+
+    header {
+      padding: 24px 20px 18px;
+      border-bottom: 1px solid var(--line)
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600
+    }
+
+    header p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 20px
+    }
+
+    ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 10px
+    }
+
+    li {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+      overflow: hidden
+    }
+
+    a.card {
+      display: block;
+      padding: 16px 18px;
+      color: inherit;
+      text-decoration: none
+    }
+
+    a.card:hover {
+      border-color: var(--accent);
+      background: var(--panel2)
+    }
+
+    li:has(a.card:hover) {
+      border-color: var(--accent)
+    }
+
+    .name {
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .name .path {
+      color: var(--muted);
+      font-weight: 400;
+      font-size: 11px
+    }
+
+    .desc {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 6px
+    }
+
+    footer {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 6px 20px 30px;
+      color: var(--muted);
+      font-size: 11px
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px
+    }
+
+    header .head-text {
+      flex: 1;
+      min-width: 0
+    }
+
+    .refresh-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex: none;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font: 600 12px var(--mono);
+      cursor: pointer
+    }
+
+    .refresh-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent)
+    }
+
+    .refresh-btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px
+    }
+
+    .refresh-btn.spinning svg {
+      animation: spin .6s linear infinite
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="head-text">
+      <h1>tool</h1>
+      <p>自作ツールの一覧です</p>
+    </div>
+    <button id="refresh" class="refresh-btn" type="button" title="最新の一覧に更新" aria-label="最新の一覧に更新">
+      <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M13.65 2.35A6.97 6.97 0 0 0 8 0a7 7 0 1 0 6.93 8h-1.52A5.5 5.5 0 1 1 8 1.5c1.52 0 2.87.68 3.78 1.75L9.5 5.5H15V0l-1.35 2.35Z" fill="currentColor"/></svg>
+      更新
+    </button>
+  </header>
+  <main>
+    <ul id="tool-list"></ul>
+  </main>
+  <footer>画像や入力内容はブラウザ内で処理され、外部には送信されません</footer>
+
+  <script>
+    // TOOLS:BEGIN（scripts/tool.py build が自動生成。手で編集しない）
+const TOOLS = [
+  {
+    "href": "feat/qr.html",
+    "path": "qr.html",
+    "name": "qr",
+    "title": "QR Code Generator",
+    "desc": "QRコード生成・読み取り・画像転送（PC⇄スマホ）",
+    "date": "2026-10-26"
+  },
+  {
+    "href": "feat/ogp_gen.html",
+    "path": "ogp_gen.html",
+    "name": "ogp",
+    "title": "OGP画像ジェネレーター",
+    "desc": "タイトルと背景から 1200×630 のOGP画像と meta タグを生成",
+    "date": "2026-10-17"
+  },
+  {
+    "href": "feat/mermaid.html",
+    "path": "mermaid.html",
+    "name": "mermaid",
+    "title": "Mermaid エディター",
+    "desc": "Mermaid図の編集・プレビュー・SVG/PNG保存",
+    "date": "2026-10-17"
+  },
+  {
+    "href": "feat/favicon_gen.html",
+    "path": "favicon_gen.html",
+    "name": "favicon",
+    "title": "ファビコン ジェネレーター",
+    "desc": "画像から favicon.ico・apple-touch-icon・PWAアイコン・manifest.json を一括生成",
+    "date": "2026-10-17"
+  },
+  {
+    "href": "feat/gfm_md.html",
+    "path": "gfm_md.html",
+    "name": "markdown",
+    "title": "Markdown エディター",
+    "desc": "マークダウン編集・プレビュー・PDF化",
+    "date": "2026-10-16"
+  },
+  {
+    "href": "feat/compress.html",
+    "path": "compress.html",
+    "name": "compress",
+    "title": "画像圧縮ツール",
+    "desc": "画像の圧縮とフォーマット変換",
+    "date": "2026-10-16"
+  },
+  {
+    "href": "feat/wrangler_config.html",
+    "path": "wrangler_config.html",
+    "name": "wrangler config",
+    "title": "wrangler config ジェネレーター",
+    "desc": "フォーム入力から wrangler.jsonc / wrangler.toml を生成",
+    "date": "2026-09-27"
+  },
+  {
+    "href": "feat/crop.html",
+    "path": "crop.html",
+    "name": "crop",
+    "title": "画像クロップ・変換ツール",
+    "desc": "背景透過・画像のリサイズ・フォーマット変換",
+    "date": "2026-09-27"
+  }
+];
+// TOOLS:END
+
+    (() => {
+      const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      document.getElementById('tool-list').innerHTML = TOOLS.map(tool => `
+        <li>
+          <a class="card" href="${esc(tool.href)}">
+            <div class="name">${esc(tool.name)}<span class="path">${esc(tool.path)}</span></div>
+            <div class="desc">${esc(tool.desc)}</div>
+          </a>
+        </li>`).join('');
+
+      document.getElementById('refresh').addEventListener('click', e => {
+        const btn = e.currentTarget;
+        btn.classList.add('spinning');
+        btn.disabled = true;
+        // CDN / ブラウザのキャッシュを避け、最新の一覧を取りに行く
+        const url = new URL(location.href);
+        url.searchParams.set('_', Date.now());
+        location.replace(url.pathname + url.search);
+      });
+    })();
+  </script>
+</body>
+
+</html>
