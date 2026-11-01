@@ -65,8 +65,11 @@ python3 scripts/tool.py new NAME   # NAME は英小文字・数字・アンダ�
 <meta name="description" content="一覧に出る説明（何ができるかを 1 文で）">
 <title>OGP画像ジェネレーター</title>
 <meta name="tool:name" content="ogp">
+<meta name="tool:category" content="画像系">
 <meta name="tool:date" content="YYYY-MM-DD">
 ```
+
+`tool:category` は一覧の見出し。`画像系` / `ドキュメント系` / `その他` のどれかにする（判断は tool-publish の手順 5）。
 
 canonical・アイコン・OGP のタグは `tool.py` が `<!-- tool:head -->` ブロックとして自動で入れるので、自分では書かない。
 

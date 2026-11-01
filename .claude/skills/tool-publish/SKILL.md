@@ -64,13 +64,19 @@ python3 scripts/tool.py lint NAME --fix --backlink
 python3 scripts/tool.py meta NAME \
   --name "ogp" \
   --desc "タイトルと背景から 1200×630 のOGP画像と meta タグを生成" \
+  --category 画像系 \
   --date
 ```
 
 - **name**: 一覧カードの見出し。英小文字の短い名前（例: `markdown`, `wrangler config`）。
 - **desc**: 一覧に出る説明。何ができるかを名詞止めで 1 文（〜50 字）。og:description にも使われる。
+- **category**: 一覧の見出し。次のどれかにする（`tool.py list` で既存ツールの分け方も見る）。
+  - `画像系`: 画像を読み込む・加工する・生成する（compress / crop / favicon / ogp）
+  - `ドキュメント系`: 文章・図・コードを書いて整形・プレビュー・書き出しする（markdown / mermaid）
+  - `その他`: 設定ファイル生成、変換ユーティリティなど上に当てはまらないもの（wrangler config / qr）
+  - どれにも収まらないツールが増えてきたら、新しい分類を作る前にユーザーに確認する。作る場合は `scripts/tool.py` の `CATEGORIES` に足す（表示順もそこで決まる）。
 - **title**: `<title>` が適切ならそのまま（`--title` は省略）。og:title は「title | tool」になる。
-- **date**: `--date` を値なしで渡すと今日。一覧は新しい順。
+- **date**: `--date` を値なしで渡すと今日。一覧は分類ごとに、その中で新しい順。
 - `<!-- tool:head -->` 〜 `<!-- /tool:head -->` は手で編集しない。
 
 ## 6. 動作確認・一覧を更新
@@ -90,7 +96,7 @@ python3 scripts/tool.py list
 
 ## 7. README に追記
 
-`README.md` の「ツール」の表に 1 行（名前・パス・説明）を追加する。機能が多いツールは、既存の crop / wrangler config のように見出しを立てて機能を箇条書きにする。
+`README.md` の「ツール」の表で、該当する分類の行の並びに 1 行（分類・名前・パス・説明）を追加する。機能が多いツールは、既存の crop / wrangler config のように見出しを立てて機能を箇条書きにする。
 
 ## 8. commit / push
 

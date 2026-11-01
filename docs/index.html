@@ -125,6 +125,33 @@
       font-size: 11px
     }
 
+    .group+.group {
+      margin-top: 28px
+    }
+
+    .group h2 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 10px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .08em
+    }
+
+    .group h2 .count {
+      color: var(--muted);
+      font-weight: 400
+    }
+
+    .group h2::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--line)
+    }
+
     .desc {
       color: var(--muted);
       font-size: 12px;
@@ -197,75 +224,84 @@
     </button>
   </header>
   <main>
-    <ul id="tool-list"></ul>
+    <div id="tool-list"></div>
   </main>
   <footer>画像や入力内容はブラウザ内で処理され、外部には送信されません</footer>
 
   <script>
     // TOOLS:BEGIN（scripts/tool.py build が自動生成。手で編集しない）
+const CATEGORIES = ["画像系", "ドキュメント系", "その他"];
 const TOOLS = [
-  {
-    "href": "feat/qr.html",
-    "path": "qr.html",
-    "name": "qr",
-    "title": "QR Code Generator",
-    "desc": "QRコード生成・読み取り・画像転送（PC⇄スマホ）",
-    "date": "2026-10-26"
-  },
   {
     "href": "feat/ogp_gen.html",
     "path": "ogp_gen.html",
     "name": "ogp",
+    "category": "画像系",
     "title": "OGP画像ジェネレーター",
     "desc": "タイトルと背景から 1200×630 のOGP画像と meta タグを生成",
-    "date": "2026-10-17"
-  },
-  {
-    "href": "feat/mermaid.html",
-    "path": "mermaid.html",
-    "name": "mermaid",
-    "title": "Mermaid エディター",
-    "desc": "Mermaid図の編集・プレビュー・SVG/PNG保存",
     "date": "2026-10-17"
   },
   {
     "href": "feat/favicon_gen.html",
     "path": "favicon_gen.html",
     "name": "favicon",
+    "category": "画像系",
     "title": "ファビコン ジェネレーター",
     "desc": "画像から favicon.ico・apple-touch-icon・PWAアイコン・manifest.json を一括生成",
+    "date": "2026-10-17"
+  },
+  {
+    "href": "feat/compress.html",
+    "path": "compress.html",
+    "name": "compress",
+    "category": "画像系",
+    "title": "画像圧縮ツール",
+    "desc": "画像の圧縮とフォーマット変換",
+    "date": "2026-10-16"
+  },
+  {
+    "href": "feat/crop.html",
+    "path": "crop.html",
+    "name": "crop",
+    "category": "画像系",
+    "title": "画像クロップ・変換ツール",
+    "desc": "背景透過・画像のリサイズ・フォーマット変換",
+    "date": "2026-09-27"
+  },
+  {
+    "href": "feat/mermaid.html",
+    "path": "mermaid.html",
+    "name": "mermaid",
+    "category": "ドキュメント系",
+    "title": "Mermaid エディター",
+    "desc": "Mermaid図の編集・プレビュー・SVG/PNG保存",
     "date": "2026-10-17"
   },
   {
     "href": "feat/gfm_md.html",
     "path": "gfm_md.html",
     "name": "markdown",
+    "category": "ドキュメント系",
     "title": "Markdown エディター",
     "desc": "マークダウン編集・プレビュー・PDF化",
     "date": "2026-10-16"
   },
   {
-    "href": "feat/compress.html",
-    "path": "compress.html",
-    "name": "compress",
-    "title": "画像圧縮ツール",
-    "desc": "画像の圧縮とフォーマット変換",
-    "date": "2026-10-16"
+    "href": "feat/qr.html",
+    "path": "qr.html",
+    "name": "qr",
+    "category": "その他",
+    "title": "QR Code Generator",
+    "desc": "QRコード生成・読み取り・画像転送（PC⇄スマホ）",
+    "date": "2026-10-26"
   },
   {
     "href": "feat/wrangler_config.html",
     "path": "wrangler_config.html",
     "name": "wrangler config",
+    "category": "その他",
     "title": "wrangler config ジェネレーター",
     "desc": "フォーム入力から wrangler.jsonc / wrangler.toml を生成",
-    "date": "2026-09-27"
-  },
-  {
-    "href": "feat/crop.html",
-    "path": "crop.html",
-    "name": "crop",
-    "title": "画像クロップ・変換ツール",
-    "desc": "背景透過・画像のリサイズ・フォーマット変換",
     "date": "2026-09-27"
   }
 ];
@@ -273,13 +309,22 @@ const TOOLS = [
 
     (() => {
       const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-      document.getElementById('tool-list').innerHTML = TOOLS.map(tool => `
-        <li>
-          <a class="card" href="${esc(tool.href)}">
-            <div class="name">${esc(tool.name)}<span class="path">${esc(tool.path)}</span></div>
-            <div class="desc">${esc(tool.desc)}</div>
-          </a>
-        </li>`).join('');
+      const card = tool => `
+            <li>
+              <a class="card" href="${esc(tool.href)}">
+                <div class="name">${esc(tool.name)}<span class="path">${esc(tool.path)}</span></div>
+                <div class="desc">${esc(tool.desc)}</div>
+              </a>
+            </li>`;
+      // 分類ごとに見出しを付けて並べる（分類の順番と中身は tool.py build が決める）
+      document.getElementById('tool-list').innerHTML = CATEGORIES.map(cat => {
+        const items = TOOLS.filter(t => t.category === cat);
+        return `
+        <section class="group" aria-label="${esc(cat)}">
+          <h2>${esc(cat)}<span class="count">${items.length}</span></h2>
+          <ul>${items.map(card).join('')}</ul>
+        </section>`;
+      }).join('');
 
       document.getElementById('refresh').addEventListener('click', e => {
         const btn = e.currentTarget;

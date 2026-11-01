@@ -2,22 +2,22 @@
 
 ブラウザだけで使える自作ツールの置き場です。ビルドやインストールは不要で、各HTMLファイルを直接開いても利用できます。
 
-- トップページ: `docs/index.html`（ツール一覧・更新ボタン）
+- トップページ: `docs/index.html`（分類ごとのツール一覧・更新ボタン）
 - 公開 URL: https://tool.taka1156.site/
   （`docs/CNAME` の独自ドメイン。canonical / OGP の URL もここから自動で決まります）
 
 ## ツール
 
-| 名前 | パス | 内容 |
-| --- | --- | --- |
-| compress | `docs/feat/compress.html` | 画像の圧縮とフォーマット変換 |
-| crop | `docs/feat/crop.html` | 背景透過・画像のリサイズ・フォーマット変換 |
-| markdown | `docs/feat/gfm_md.html` | マークダウン編集・プレビュー・PDF化 |
-| mermaid | `docs/feat/mermaid.html` | Mermaid図の編集・プレビュー・SVG/PNG保存 |
-| wrangler config | `docs/feat/wrangler_config.html` | フォーム入力から wrangler.jsonc / wrangler.toml を生成 |
-| favicon | `docs/feat/favicon_gen.html` | 画像から favicon.ico・apple-touch-icon・PWAアイコン・manifest.json を一括生成 |
-| ogp | `docs/feat/ogp_gen.html` | タイトルと背景から 1200×630 のOGP画像と meta タグを生成 |
-| qr | `docs/feat/qr.html` | QRコード生成・読み取り・画像転送（PC⇄スマホ） |
+| 分類 | 名前 | パス | 内容 |
+| --- | --- | --- | --- |
+| 画像系 | compress | `docs/feat/compress.html` | 画像の圧縮とフォーマット変換 |
+| 画像系 | crop | `docs/feat/crop.html` | 背景透過・画像のリサイズ・フォーマット変換 |
+| 画像系 | favicon | `docs/feat/favicon_gen.html` | 画像から favicon.ico・apple-touch-icon・PWAアイコン・manifest.json を一括生成 |
+| 画像系 | ogp | `docs/feat/ogp_gen.html` | タイトルと背景から 1200×630 のOGP画像と meta タグを生成 |
+| ドキュメント系 | markdown | `docs/feat/gfm_md.html` | マークダウン編集・プレビュー・PDF化 |
+| ドキュメント系 | mermaid | `docs/feat/mermaid.html` | Mermaid図の編集・プレビュー・SVG/PNG保存 |
+| その他 | wrangler config | `docs/feat/wrangler_config.html` | フォーム入力から wrangler.jsonc / wrangler.toml を生成 |
+| その他 | qr | `docs/feat/qr.html` | QRコード生成・読み取り・画像転送（PC⇄スマホ） |
 
 ### crop
 
@@ -95,10 +95,11 @@ Cloudflare Workersの設定を入力し、`wrangler.jsonc` または `wrangler.t
   <meta name="description" content="一覧に出る説明">
   <title>OGP画像ジェネレーター</title>
   <meta name="tool:name" content="ogp">
+  <meta name="tool:category" content="画像系">
   <meta name="tool:date" content="2026-10-17">
   ```
 
-- `docs/index.html` の `// TOOLS:BEGIN`〜`// TOOLS:END` は自動生成です。手で編集しません（一覧は新しい順）
+- `docs/index.html` の `// TOOLS:BEGIN`〜`// TOOLS:END` は自動生成です。手で編集しません（分類ごとに見出しを付け、その中は新しい順。分類の種類と表示順は `scripts/tool.py` の `CATEGORIES`）
 - 全ページの `<!-- tool:head -->` ブロック（canonical・アイコン・OGP）も自動生成です。og:title は「title | tool」、og:description は description から作られます
 - 各ツールのフッターに「← 一覧に戻る」ボタン、一覧ページに「更新」ボタン（キャッシュを避けて再読み込み）があります
 - master に `docs/**/*.html` が push されると、GitHub Actions が一覧を再生成します（GitHub の画面から HTML を直接アップロードしても載ります）
@@ -109,7 +110,7 @@ Cloudflare Workersの設定を入力し、`wrangler.jsonc` または `wrangler.t
 python3 scripts/tool.py add ~/Downloads/foo.html foo   # docs/feat/foo.html として取り込む
 python3 scripts/tool.py new foo                        # またはテンプレートから新規作成
 python3 scripts/tool.py lint foo --fix --backlink      # 崩れチェック・修正（全ツールは --all）
-python3 scripts/tool.py meta foo --name foo --desc "…" --date
+python3 scripts/tool.py meta foo --name foo --desc "…" --category 画像系 --date
 python3 scripts/tool.py build                          # 一覧を再生成
 python3 scripts/tool.py list                           # 一覧を表示
 ```

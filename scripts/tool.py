@@ -7,7 +7,7 @@
   python3 scripts/tool.py path  NAME                  docs/feat/NAME.html の絶対パスを表示
   python3 scripts/tool.py url   [NAME]                公開 URL を表示（docs/CNAME の独自ドメイン）
   python3 scripts/tool.py lint  TOOL... [--fix] [--backlink]   （--all で全ツール）
-  python3 scripts/tool.py meta  TOOL [--title T] [--desc D] [--name N] [--date YYYY-MM-DD]
+  python3 scripts/tool.py meta  TOOL [--title T] [--desc D] [--name N] [--category C] [--date YYYY-MM-DD]
   python3 scripts/tool.py build [--check]
   python3 scripts/tool.py list
 
@@ -19,7 +19,8 @@ TOOL / NAME は「crop」「crop.html」「docs/feat/crop.html」のどれでも
   <title>                         ページタイトル（og:title にも使う）
   <meta name="description">       一覧に出る説明
   <meta name="tool:name">         一覧に出る短い名前（例: crop）。なければファイル名
-  <meta name="tool:date">         追加日 YYYY-MM-DD（一覧は新しい順）
+  <meta name="tool:category">     一覧の分類（画像系 / ドキュメント系 / その他）。なければ「その他」
+  <meta name="tool:date">         追加日 YYYY-MM-DD（分類の中で新しい順）
 """
 from __future__ import annotations
 
@@ -69,6 +70,9 @@ HEAD_END = "<!-- /tool:head -->"
 HEAD_RE = re.compile(r"[ \t]*<!-- tool:head.*?<!-- /tool:head -->\n?", re.S)
 TEMPLATE = ROOT / ".claude" / "skills" / "tool-style" / "template.html"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:[-_][a-z0-9]+)*$")
+# 一覧の分類と表示順。ここにない分類は末尾に追加される（新しい分類を作るときはここにも足す）
+CATEGORIES = ["画像系", "ドキュメント系", "その他"]
+DEFAULT_CATEGORY = "その他"
 BEGIN = "// TOOLS:BEGIN"
 END = "// TOOLS:END"
 BACKLINK_ID = "tool-backlink"
@@ -139,6 +143,7 @@ def read_meta(path: Path) -> dict:
         "href": rel(path),
         "path": path.name,
         "name": m.get("tool:name", "").strip() or path.stem,
+        "category": m.get("tool:category", "").strip() or DEFAULT_CATEGORY,
         "title": title or path.stem,
         "desc": m.get("description", "").strip(),
         "date": m.get("tool:date", "").strip() or git_added_date(path),
@@ -319,6 +324,11 @@ def lint_text(text: str, path: Path, add_backlink: bool) -> tuple[str, list[str]
     if not is_index:
         if not meta.get("tool:name", "").strip():
             problems.append("一覧用の短い名前（meta tool:name）がない（tool.py meta --name で追加）")
+        cat = meta.get("tool:category", "").strip()
+        if not cat:
+            problems.append("分類（meta tool:category）がない（tool.py meta --category で追加）")
+        elif cat not in CATEGORIES:
+            problems.append(f"分類「{cat}」は一覧の既定にない（{' / '.join(CATEGORIES)}。新設なら tool.py の CATEGORIES に追加）")
         if not meta.get("tool:date", "").strip():
             problems.append("追加日（meta tool:date）がない（tool.py meta --date で追加）")
 
@@ -398,6 +408,8 @@ def cmd_meta(args) -> int:
         text = _set_meta(text, "description", args.desc)
     if args.name is not None:
         text = _set_meta(text, "tool:name", args.name)
+    if args.category is not None:
+        text = _set_meta(text, "tool:category", args.category.strip())
     if args.date is not None:
         date = args.date or dt.date.today().isoformat()
         dt.date.fromisoformat(date)
@@ -410,8 +422,9 @@ def cmd_meta(args) -> int:
 # ---------------------------------------------------------------- build
 
 def render_block(tools: list[dict]) -> str:
+    cats = list(dict.fromkeys(t["category"] for t in tools))
     body = json.dumps(tools, ensure_ascii=False, indent=2).replace("</", "<\\/")
-    return f"{BEGIN}（scripts/tool.py build が自動生成。手で編集しない）\nconst TOOLS = {body};\n{END}"
+    return f"{BEGIN}（scripts/tool.py build が自動生成。手で編集しない）\nconst CATEGORIES = {json.dumps(cats, ensure_ascii=False)};\nconst TOOLS = {body};\n{END}"
 
 
 def cmd_build(args) -> int:
@@ -427,6 +440,8 @@ def cmd_build(args) -> int:
         print(("head が古い: " if args.check else "head を更新: ") + ", ".join(stale))
     tools = sorted((read_meta(p) for p in tool_files()),
                    key=lambda t: (t["date"], t["path"]), reverse=True)
+    order = {c: i for i, c in enumerate(CATEGORIES)}
+    tools.sort(key=lambda t: order.get(t["category"], len(CATEGORIES)))  # 安定ソート: 分類内は新しい順のまま
     src = INDEX.read_text(encoding="utf-8")
     pat = re.compile(re.escape(BEGIN) + r".*?" + re.escape(END), re.S)
     if not pat.search(src):
@@ -529,6 +544,7 @@ def main() -> int:
     p.add_argument("--title")
     p.add_argument("--desc")
     p.add_argument("--name", help="一覧に出る短い名前（例: crop）")
+    p.add_argument("--category", help="一覧の分類（" + " / ".join(CATEGORIES) + "）")
     p.add_argument("--date", nargs="?", const="", help="YYYY-MM-DD（値なしで今日）")
     p.set_defaults(func=cmd_meta)
 
