@@ -1,0 +1,1858 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="対話形式の質問に答えてZenn記事テンプレートに沿った記事メモを作成・プレビュー・Markdown入出力">
+    <title>記事メモウィザード</title>
+<!-- tool:head（scripts/tool.py が自動生成。手で編集しない） -->
+<link rel="canonical" href="https://tool.taka1156.site/feat/article_memo.html">
+<link rel="icon" href="../assets/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="tool">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="tool">
+<meta property="og:title" content="記事メモウィザード | tool">
+<meta property="og:description" content="対話形式の質問に答えてZenn記事テンプレートに沿った記事メモを作成・プレビュー・Markdown入出力">
+<meta property="og:url" content="https://tool.taka1156.site/feat/article_memo.html">
+<meta property="og:image" content="https://tool.taka1156.site/assets/ogp.png?v=d6b7431c">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Webツール集">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /tool:head -->
+    <meta name="tool:name" content="article memo">
+    <meta name="tool:category" content="ドキュメント系">
+    <meta name="tool:date" content="2026-11-14">
+    <meta name="color-scheme" content="light dark">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.css">
+    <script>
+        // 初回描画前にテーマを適用（ちらつき防止）
+        try {
+            var t = localStorage.getItem('webtools:theme');
+            if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+        } catch (e) { }
+    </script>
+    <style>
+        [hidden] {
+            display: none !important;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            color-scheme: light;
+            --bg: #f5f6f8;
+            --panel: #ffffff;
+            --subtle: #f6f8fa;
+            --hover: #eef0f3;
+            --border: #dfe3e8;
+            --text: #1f2328;
+            --muted: #656d76;
+            --accent: #2563eb;
+            --accent-weak: #e8f0fe;
+            --code-bg: #f3f4f6;
+            --danger: #d1242f;
+            --ok: #1a7f37;
+            --warn: #9a6700;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                color-scheme: dark;
+                --bg: #0d1117;
+                --panel: #161b22;
+                --subtle: #1c2330;
+                --hover: #222b38;
+                --border: #30363d;
+                --text: #e6edf3;
+                --muted: #8b949e;
+                --accent: #6ea8fe;
+                --accent-weak: #1b2a45;
+                --code-bg: #212a36;
+                --danger: #ff7b72;
+                --ok: #3fb950;
+                --warn: #d29922;
+            }
+        }
+
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --bg: #0d1117;
+            --panel: #161b22;
+            --subtle: #1c2330;
+            --hover: #222b38;
+            --border: #30363d;
+            --text: #e6edf3;
+            --muted: #8b949e;
+            --accent: #6ea8fe;
+            --accent-weak: #1b2a45;
+            --code-bg: #212a36;
+            --danger: #ff7b72;
+            --ok: #3fb950;
+            --warn: #d29922;
+        }
+
+        html {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .app-header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .app-header h1 {
+            font-size: 16px;
+            margin: 0;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .spacer {
+            flex: 1;
+        }
+
+        button,
+        .btn {
+            font: inherit;
+            font-size: 13px;
+            color: var(--text);
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            line-height: 1.3;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:hover,
+        .btn:hover {
+            background: var(--hover);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #fff;
+        }
+
+        button.primary:hover {
+            background: #1d4ed8;
+        }
+
+        button.danger {
+            color: var(--danger);
+        }
+
+        button.danger.armed {
+            background: var(--danger);
+            border-color: var(--danger);
+            color: #fff;
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 1px;
+        }
+
+        main.layout {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 16px;
+            display: grid;
+            grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+
+        @media (max-width: 860px) {
+            main.layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .col {
+            min-width: 0;
+            display: grid;
+            gap: 16px;
+        }
+
+        .col.sticky {
+            position: sticky;
+            top: 62px;
+        }
+
+        @media (max-width: 860px) {
+            .col.sticky {
+                position: static;
+            }
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            min-width: 0;
+        }
+
+        .card h2 {
+            font-size: 14px;
+            margin: 0 0 10px;
+        }
+
+        .card-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .card-head h2 {
+            margin: 0;
+        }
+
+        .field {
+            display: grid;
+            gap: 4px;
+            margin-bottom: 10px;
+        }
+
+        .field label {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            font: inherit;
+            font-size: 13px;
+            color: var(--text);
+            background: var(--subtle);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            width: 100%;
+        }
+
+        textarea {
+            resize: vertical;
+            line-height: 1.6;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        pre {
+            margin: 0;
+            padding: 10px 12px;
+            background: var(--code-bg);
+            border-radius: 6px;
+            overflow-x: auto;
+            font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        .check {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--muted);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        /* ---------- progress ---------- */
+        .progress-top {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .qcount {
+            font-size: 22px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: .02em;
+        }
+
+        .qcount small {
+            font-size: 13px;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .group-label {
+            font-size: 12px;
+            color: var(--accent);
+            background: var(--accent-weak);
+            border-radius: 999px;
+            padding: 1px 10px;
+            font-weight: 600;
+        }
+
+        .stats {
+            margin-left: auto;
+            font-size: 12px;
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .stats b {
+            color: var(--text);
+        }
+
+        .segbar {
+            display: flex;
+            gap: 3px;
+            margin-bottom: 4px;
+        }
+
+        .seg {
+            flex: 1;
+            height: 8px;
+            padding: 0;
+            border: 0;
+            border-radius: 3px;
+            background: var(--hover);
+            cursor: pointer;
+            min-width: 0;
+        }
+
+        .seg:hover {
+            background: var(--border);
+        }
+
+        .seg.filled {
+            background: var(--accent);
+        }
+
+        .seg.skipped {
+            background: repeating-linear-gradient(45deg, var(--muted) 0 3px, transparent 3px 6px);
+            opacity: .7;
+        }
+
+        .seg.current {
+            outline: 2px solid var(--text);
+            outline-offset: 1px;
+        }
+
+        .pct {
+            font-size: 11px;
+            color: var(--muted);
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ---------- chat-like question ---------- */
+        .chat {
+            display: grid;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .bubble-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .avatar {
+            flex: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: var(--accent-weak);
+            font-size: 17px;
+        }
+
+        .bubble {
+            background: var(--subtle);
+            border: 1px solid var(--border);
+            border-radius: 4px 12px 12px 12px;
+            padding: 10px 14px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .bubble .q {
+            font-size: 16px;
+            font-weight: 700;
+            margin: 0 0 4px;
+        }
+
+        .badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 4px;
+            padding: 0 6px;
+            margin-left: 6px;
+            vertical-align: 2px;
+            border: 1px solid var(--border);
+            color: var(--muted);
+        }
+
+        .badge.skip {
+            color: var(--warn);
+            border-color: var(--warn);
+        }
+
+        .section-tag {
+            font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .chip {
+            font-size: 12px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: var(--panel);
+        }
+
+        .chip::before {
+            content: "＋";
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .chip.plain::before {
+            content: none;
+        }
+
+        .ref-box {
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--muted);
+            border-left: 3px solid var(--border);
+            padding: 2px 0 2px 10px;
+            white-space: pre-wrap;
+        }
+
+        .answer textarea {
+            min-height: 150px;
+        }
+
+        .answer .counter {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4px;
+        }
+
+        .choice-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .choice {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            cursor: pointer;
+            background: var(--panel);
+        }
+
+        .choice:hover {
+            background: var(--hover);
+        }
+
+        .choice:has(input:checked) {
+            border-color: var(--accent);
+            background: var(--accent-weak);
+        }
+
+        .choice input {
+            margin-top: 4px;
+        }
+
+        .choice b {
+            display: block;
+        }
+
+        .emoji-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .emoji-row input {
+            width: 80px;
+            font-size: 26px;
+            text-align: center;
+            padding: 4px;
+        }
+
+        .emoji-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 10px;
+        }
+
+        .emoji-grid button {
+            font-size: 20px;
+            padding: 4px 6px;
+            line-height: 1.2;
+        }
+
+        .emoji-grid button.on {
+            border-color: var(--accent);
+            background: var(--accent-weak);
+        }
+
+        .tag {
+            display: inline-block;
+            font-size: 12px;
+            padding: 1px 8px;
+            border-radius: 999px;
+            background: var(--accent-weak);
+            color: var(--accent);
+            margin: 2px 4px 2px 0;
+        }
+
+        .tag.over {
+            background: transparent;
+            color: var(--danger);
+            border: 1px dashed var(--danger);
+            text-decoration: line-through;
+        }
+
+        .nav {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+
+        .nav .kbd {
+            font-size: 11px;
+            color: var(--muted);
+            margin-left: auto;
+        }
+
+        .fill-banner {
+            margin-top: 10px;
+            font-size: 12px;
+            background: var(--accent-weak);
+            color: var(--text);
+            border-radius: 6px;
+            padding: 6px 10px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .fill-banner button {
+            padding: 2px 8px;
+            font-size: 12px;
+            margin-left: auto;
+        }
+
+        .done {
+            text-align: center;
+            padding: 18px 6px 6px;
+        }
+
+        .done .big {
+            font-size: 40px;
+        }
+
+        .done h3 {
+            margin: 6px 0;
+            font-size: 18px;
+        }
+
+        .done .nav {
+            justify-content: center;
+        }
+
+        /* ---------- step list ---------- */
+        .steps {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 2px;
+        }
+
+        .steps .grp {
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 700;
+            letter-spacing: .06em;
+            margin: 8px 0 2px;
+        }
+
+        .steps .grp:first-child {
+            margin-top: 0;
+        }
+
+        .steps button {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            justify-content: flex-start;
+            text-align: left;
+            padding: 5px 8px;
+        }
+
+        .steps button:hover {
+            background: var(--hover);
+        }
+
+        .steps button.cur {
+            background: var(--accent-weak);
+            font-weight: 700;
+        }
+
+        .steps .ico {
+            width: 18px;
+            flex: none;
+            text-align: center;
+        }
+
+        .steps .num {
+            font: 11px ui-monospace, Menlo, monospace;
+            color: var(--muted);
+            width: 26px;
+            flex: none;
+        }
+
+        .steps .lbl {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .steps .st {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .ico.filled {
+            color: var(--ok);
+        }
+
+        .ico.skipped {
+            color: var(--warn);
+        }
+
+        .ico.empty {
+            color: var(--muted);
+        }
+
+        /* ---------- preview ---------- */
+        .tabs {
+            display: inline-flex;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .tabs button {
+            border: 0;
+            border-radius: 0;
+            padding: 5px 12px;
+        }
+
+        .tabs button[aria-selected="true"] {
+            background: var(--accent-weak);
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .preview-wrap {
+            max-height: calc(100vh - 250px);
+            min-height: 240px;
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--panel);
+        }
+
+        @media (max-width: 860px) {
+            .preview-wrap {
+                max-height: none;
+            }
+        }
+
+        #rawOut {
+            border-radius: 0;
+            background: var(--code-bg);
+            min-height: 100%;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .fm {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--subtle);
+        }
+
+        .fm .emo {
+            font-size: 44px;
+            line-height: 1;
+            flex: none;
+        }
+
+        .fm .ttl {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0 0 4px;
+            word-break: break-word;
+        }
+
+        .fm .ttl.empty {
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .fm .meta {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .md {
+            padding: 4px 18px 18px;
+            word-break: break-word;
+        }
+
+        .md .sec {
+            border-radius: 6px;
+            margin: 0 -8px;
+            padding: 0 8px;
+            cursor: pointer;
+        }
+
+        .md .sec:hover {
+            background: var(--hover);
+        }
+
+        .md .sec.cur {
+            box-shadow: inset 3px 0 0 var(--accent);
+        }
+
+        .md h2 {
+            font-size: 18px;
+            border-bottom: 1px solid var(--border);
+            padding: 14px 0 4px;
+            margin: 0 0 8px;
+        }
+
+        .md h3 {
+            font-size: 15px;
+            padding-top: 10px;
+            margin: 0 0 6px;
+        }
+
+        .md .body> :first-child {
+            margin-top: 0;
+        }
+
+        .md .body {
+            padding-bottom: 6px;
+        }
+
+        .md p,
+        .md ul,
+        .md ol {
+            margin: 6px 0;
+        }
+
+        .md ul,
+        .md ol {
+            padding-left: 1.4em;
+        }
+
+        .md code {
+            background: var(--code-bg);
+            border-radius: 4px;
+            padding: 1px 5px;
+            font: 12.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        .md pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .md pre {
+            margin: 8px 0;
+        }
+
+        .md blockquote {
+            margin: 8px 0;
+            padding: 2px 12px;
+            border-left: 3px solid var(--border);
+            color: var(--muted);
+        }
+
+        .md table {
+            border-collapse: collapse;
+            display: block;
+            overflow-x: auto;
+        }
+
+        .md th,
+        .md td {
+            border: 1px solid var(--border);
+            padding: 4px 8px;
+        }
+
+        .md a {
+            color: var(--accent);
+        }
+
+        .md img {
+            max-width: 100%;
+        }
+
+        .md .empty-sec {
+            color: var(--muted);
+            font-size: 12px;
+            font-style: italic;
+            margin: 2px 0 8px;
+        }
+
+        .md .extra {
+            opacity: .85;
+            cursor: default;
+        }
+
+        .lib-err {
+            color: var(--danger);
+            font-size: 12px;
+            padding: 8px 18px 0;
+        }
+
+        .export-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .export-row .check {
+            margin-right: auto;
+        }
+
+        /* ---------- import ---------- */
+        .drop {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .drop:hover,
+        .drop.drag {
+            border-color: var(--accent);
+            background: var(--accent-weak);
+            color: var(--text);
+        }
+
+        details summary {
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 10px;
+        }
+
+        details textarea {
+            margin-top: 6px;
+            min-height: 110px;
+            font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translate(-50%, 20px);
+            background: var(--text);
+            color: var(--bg);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .2s, transform .2s;
+            z-index: 100;
+            max-width: calc(100vw - 32px);
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        /* driver.js をテーマに合わせる */
+        .driver-popover {
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .driver-popover-title {
+            font-size: 15px;
+        }
+
+        .driver-popover-description {
+            color: var(--muted);
+        }
+
+        @media (max-width: 420px) {
+            .stats {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .nav .kbd {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="app-header">
+        <h1>📝 Article Memo Wizard</h1>
+        <div class="spacer"></div>
+        <button id="btnTheme" type="button" title="テーマ切替（自動 / ライト / ダーク）">🌓 自動</button>
+        <button id="btnHelp" type="button" title="使い方ツアー">？</button>
+    </header>
+
+    <main class="layout">
+        <div class="col">
+            <section class="card" id="wizardCard">
+                <div class="card-head">
+                    <h2>① 質問に答える</h2>
+                </div>
+                <div id="progress">
+                    <div class="progress-top">
+                        <span class="qcount" id="qCount">Q1 <small>/ 15</small></span>
+                        <span class="group-label" id="groupLabel">方向性</span>
+                        <span class="stats" id="stats"></span>
+                    </div>
+                    <div class="segbar" id="segbar" role="group" aria-label="質問の進捗"></div>
+                    <div class="pct" id="pct"></div>
+                </div>
+                <div id="fillBanner" class="fill-banner" hidden></div>
+                <div id="wizard"></div>
+            </section>
+
+            <section class="card" id="stepsCard">
+                <div class="card-head">
+                    <h2>② 項目一覧</h2>
+                    <div class="spacer"></div>
+                    <label class="check" title="オンにすると「次へ」で記入済みの項目を飛ばします"><input type="checkbox" id="fillOnly"> 未記入だけ巡回</label>
+                    <button id="btnReset" type="button" class="danger" title="入力内容をすべて消去">新規作成</button>
+                </div>
+                <ul class="steps" id="steps"></ul>
+            </section>
+        </div>
+
+        <div class="col sticky">
+            <section class="card" id="previewCard">
+                <div class="card-head">
+                    <h2>③ プレビュー</h2>
+                    <div class="spacer"></div>
+                    <div class="tabs" role="tablist">
+                        <button type="button" role="tab" id="tabPreview" aria-selected="true">プレビュー</button>
+                        <button type="button" role="tab" id="tabRaw" aria-selected="false">Markdown</button>
+                    </div>
+                </div>
+                <div class="preview-wrap" id="previewWrap">
+                    <div id="previewPane">
+                        <div class="fm" id="fmView"></div>
+                        <div class="lib-err" id="libErr" hidden></div>
+                        <div class="md" id="mdView"></div>
+                    </div>
+                    <pre id="rawOut" hidden></pre>
+                </div>
+                <div class="export-row" id="exportRow">
+                    <label class="check" title="未記入・記入済みに関わらず、テンプレートのガイドコメント（&lt;!-- --&gt;）を出力に残します"><input type="checkbox" id="keepComments"> ガイドコメントを残す</label>
+                    <button id="btnCopy" type="button">コピー</button>
+                    <button id="btnDownload" type="button" class="primary">.md をダウンロード</button>
+                </div>
+            </section>
+
+            <section class="card" id="importCard">
+                <h2>④ インポート</h2>
+                <div class="drop" id="drop" tabindex="0" role="button">
+                    書きかけの記事メモ（.md）をドロップ、またはクリックして選択
+                </div>
+                <input type="file" id="fileIn" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden>
+                <details>
+                    <summary>テキストを貼り付けて読み込む</summary>
+                    <textarea id="pasteIn" placeholder="---&#10;title: &quot;&quot;&#10;...&#10;---&#10;&#10;## この記事で伝えたいこと"></textarea>
+                    <div style="margin-top:6px"><button id="btnPaste" type="button">読み込む</button></div>
+                </details>
+                <p class="hint" style="margin:8px 0 0">読み込むと現在の内容は置き換わり、未記入の項目から順番に質問します。テンプレートにない見出しはそのまま保持して書き出します。</p>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        /* ===================== common utilities ===================== */
+        const $ = (s, r = document) => r.querySelector(s);
+        const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+        const lsGet = (k, d = null) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } };
+        const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { } };
+        const debounce = (fn, ms = 150) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+
+        /* ---------- theme (auto / light / dark) ---------- */
+        const THEME_KEY = 'webtools:theme';
+        const THEMES = ['auto', 'light', 'dark'];
+        const THEME_LABEL = { auto: '🌓 自動', light: '☀️ ライト', dark: '🌙 ダーク' };
+        let theme = lsGet(THEME_KEY, 'auto');
+        if (!THEMES.includes(theme)) theme = 'auto';
+        function applyTheme(t) {
+            theme = t;
+            if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+            else document.documentElement.setAttribute('data-theme', t);
+            const b = $('#btnTheme');
+            if (b) b.textContent = THEME_LABEL[t];
+            lsSet(THEME_KEY, t);
+            document.dispatchEvent(new Event('themechange'));
+        }
+
+        /* ---------- toast / clipboard ---------- */
+        let toastTimer;
+        function toast(msg) {
+            let el = $('#toast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'toast'; el.className = 'toast'; el.setAttribute('role', 'status');
+                document.body.appendChild(el);
+            }
+            el.textContent = msg;
+            el.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+        }
+        async function copyText(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+            } catch (e) {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); } catch (e2) { }
+                ta.remove();
+            }
+            toast('コピーしました');
+        }
+
+        /* ---------- drag & drop ---------- */
+        function setupDrop(zone, input, cb) {
+            zone.addEventListener('click', () => input.click());
+            zone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+            ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('drag'); }));
+            ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('drag'); }));
+            zone.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) cb(f); });
+            input.addEventListener('change', () => { const f = input.files[0]; if (f) cb(f); input.value = ''; });
+        }
+        window.addEventListener('dragover', e => e.preventDefault());
+        window.addEventListener('drop', e => e.preventDefault());
+
+        /* ---------- lazy script loader ---------- */
+        const _scripts = {};
+        function loadScript(src) {
+            if (!_scripts[src]) {
+                _scripts[src] = new Promise((res, rej) => {
+                    const s = document.createElement('script');
+                    s.src = src;
+                    s.onload = res;
+                    s.onerror = () => { delete _scripts[src]; rej(new Error('読み込みに失敗しました: ' + src)); };
+                    document.head.appendChild(s);
+                });
+            }
+            return _scripts[src];
+        }
+
+        /* ---------- init: theme button + driver.js onboarding ---------- */
+        const DRIVER_JS = 'https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.js.iife.js';
+        function initCommon({ steps } = {}) {
+            applyTheme(theme);
+            const bt = $('#btnTheme');
+            if (bt) bt.addEventListener('click', () => applyTheme(THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]));
+
+            const runTour = async () => {
+                try { await loadScript(DRIVER_JS); } catch (e) { toast('ツアーの読み込みに失敗しました'); return; }
+                const { driver } = window.driver.js;
+                driver({
+                    showProgress: true, allowClose: true,
+                    nextBtnText: '次へ', prevBtnText: '戻る', doneBtnText: '完了',
+                    progressText: '{{current}} / {{total}}',
+                    steps: steps ? steps() : []
+                }).drive();
+            };
+            const bh = $('#btnHelp');
+            if (bh) bh.addEventListener('click', runTour);
+
+            const params = new URLSearchParams(location.search);
+            if (params.get('onBoarding') === '1') {
+                params.delete('onBoarding');
+                const qs = params.toString();
+                try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash); } catch (e) { }
+                if (document.readyState === 'complete') runTour();
+                else window.addEventListener('load', runTour);
+            }
+        }
+
+        /* ===================== このツール固有の処理 ===================== */
+        const KEY = 'webtools:article_memo';
+        const MARKED_JS = 'https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js';
+        const PURIFY_JS = 'https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js';
+        const MAX_TOPICS = 5;
+
+        // テンプレート（taka1156/zenn-writing-environment template/article.md）に対応する質問
+        const TITLE_COMMENT = 'タイトルは書き終わった後に決める。「〇〇した話」「〇〇でXXを解決した」など';
+        const TYPE_COMMENT = 'tech or idea';
+        const BODY_ORDER = ['want', 'reader', 'background', 'cause', 'solution', 'env', 'impl', 'result', 'caveat', 'summary', 'refs'];
+
+        const STEPS = [
+            {
+                id: 'type', group: '方向性', label: '記事タイプ', kind: 'choice',
+                q: 'どんな種類の記事にしますか？',
+                hint: 'Zenn の type。迷ったら技術的な内容かどうかで選びます。',
+                options: [
+                    { value: 'tech', title: '💻 tech（技術記事）', desc: 'プログラミング・インフラ・ツールなど、技術的な知見や手順' },
+                    { value: 'idea', title: '💡 idea（アイデア記事）', desc: 'キャリア・チーム・考え方など、技術そのもの以外の記事' }
+                ]
+            },
+            {
+                id: 'want', group: '本文', label: 'この記事で伝えたいこと', kind: 'list', heading: 'この記事で伝えたいこと', level: 2,
+                q: '読者に一番持ち帰ってほしいことは何ですか？',
+                hint: '2〜4点の箇条書きで記事のゴールを先に示します。1行が1項目になります。',
+                placeholder: '〇〇を使うと△△が楽になる\n□□でハマるポイントと回避策',
+                deep: ['一言で言うと何の記事？', '読み終えた読者は何ができるようになる？', '自分が一番驚いた・学んだことは？'],
+                comment: '<!-- 箇条書き2〜4点で記事のゴールを先に示す。読者が迷子にならないための道標。 -->'
+            },
+            {
+                id: 'reader', group: '本文', label: '対象読者', kind: 'textarea', rows: 3, heading: '対象読者', level: 2,
+                q: '誰に向けて書きますか？',
+                hint: '「〇〇を知っている人」「〇〇を使い始めた人」など一言で。スコープが決まると書きやすくなります。',
+                placeholder: '〇〇を触ったことがあり、△△で困っている人',
+                deep: ['前提知識はどこまで？', 'どんな状況にいる人？', '読者が抱えている悩みは？'],
+                comment: '<!-- 「〇〇を知っている人」「〇〇を使い始めた人」など一言で。スコープが決まると書きやすい。 -->'
+            },
+            {
+                id: 'background', group: '本文', label: '背景・課題', kind: 'textarea', heading: '背景・課題', level: 2,
+                q: '何に困っていましたか？',
+                hint: '「何が問題だったか」を具体例付きで。課題がシンドいほど、解決技術の価値が際立ちます。',
+                deep: ['いつ・どこで困った？', '具体的なエピソードは？', '放置するとどうなる？', '既存のやり方の何が不満？'],
+                comment: '<!-- 技術は課題を解決するための仕組み。「何が問題だったか」を具体例付きで。\n     課題がシンドいほど、解決技術の価値が際立つ。 -->'
+            },
+            {
+                id: 'cause', group: '本文', label: '原因', kind: 'textarea', rows: 4, optional: true, heading: '原因（任意）', level: 2,
+                q: 'その課題はなぜ起きていましたか？',
+                hint: '説明できると説得力が増します。短くてもOK、わからなければスキップしましょう。',
+                deep: ['根本原因は？', 'どうやって突き止めた？'],
+                comment: '<!-- 課題がなぜ起きるかを説明できると説得力が増す。短くてもよい。 -->'
+            },
+            {
+                id: 'solution', group: '本文', label: '解決策・やったこと', kind: 'textarea', heading: '解決策・やったこと', level: 2,
+                q: '何をして解決しましたか？',
+                hint: '結論ファーストで。最初の文で「何をしたか」を言い切ります。失敗したアプローチも記録すると深みが出ます。',
+                deep: ['結論を一文で言うと？', 'なぜその方法を選んだ？', '他に検討した方法は？', '失敗したアプローチは？'],
+                comment: '<!-- 結論ファーストで書く。最初の文で「何をしたか」を言い切る。\n     思考プロセス（失敗したアプローチも含む）を記録すると深みが出る。 -->'
+            },
+            {
+                id: 'env', group: '本文', label: '環境・前提条件', kind: 'textarea', rows: 4, heading: '環境・前提条件', level: 3,
+                q: 'どんな環境・前提で試しましたか？',
+                hint: 'バージョン、OS、チーム規模など。後から自分が読み返すときにも重要です。',
+                placeholder: '- Node.js 22\n- macOS 15',
+                deep: ['言語・フレームワークのバージョン', 'OS・ランタイム', 'チーム規模・期間', '必要な権限・アカウント'],
+                comment: '<!-- バージョン、OS、チーム規模など。後から自分が読み返すときにも重要。 -->'
+            },
+            {
+                id: 'impl', group: '本文', label: '実装・手順', kind: 'textarea', rows: 8, heading: '実装・手順', level: 3,
+                q: '具体的な手順や実装を教えてください',
+                hint: 'コードブロックの前に「何をするか」、後に「なぜそうしたか」を書きます。メモ段階なので箇条書きでOK。',
+                deep: ['最初にやったことは？', 'ポイントになるコードは？', 'そう書いた理由は？', 'ハマったところは？'],
+                comment: '<!-- コードブロックの前に「何をするか」、後に「なぜそうしたか」を書く。 -->'
+            },
+            {
+                id: 'result', group: '本文', label: '結果・効果', kind: 'textarea', heading: '結果・効果', level: 2,
+                q: '結果どうなりましたか？',
+                hint: 'ビフォー・アフターを具体的に。「とても改善した」は黄信号 → 何の指標でどれだけ改善したかを書きます。',
+                deep: ['ビフォーは？', 'アフターは？', '数値で言うと？', '周りの反応は？'],
+                comment: '<!-- ビフォー・アフターを具体的に（数値があるとなお良い）。\n     「とても改善した」は黄信号 → 何の指標でどれだけ改善したかを書く。 -->'
+            },
+            {
+                id: 'caveat', group: '本文', label: '留意点・デメリット・今後の課題', kind: 'textarea', heading: '留意点・デメリット・今後の課題', level: 2,
+                q: '注意点や、まだ残っている課題はありますか？',
+                hint: '万能な技術は存在しません。未解決の課題は正直に書いてOK。むしろ信頼性が上がります。',
+                deep: ['向いていないケースは？', '他の解決手段との比較', 'コスト・デメリット', '未解決の課題'],
+                comment: '<!-- 万能な技術は存在しない。使用上の注意や別の解決手段との比較があると誠実。\n     未解決の課題は正直に書いてOK。むしろ信頼性が上がる。 -->'
+            },
+            {
+                id: 'summary', group: '本文', label: 'まとめ', kind: 'textarea', rows: 4, heading: 'まとめ', level: 2,
+                q: 'ひとことでまとめると？',
+                hint: '伝えたかったことを再掲し、次のステップや参考資料へつなげます。',
+                deep: [{ label: '「伝えたいこと」を引用', action: 'quoteWant' }, '次のステップは？', '読者に試してほしいこと'],
+                comment: '<!-- この記事で伝えたかったことを再掲 + 次のステップや参考資料へのリンク。 -->'
+            },
+            {
+                id: 'refs', group: '本文', label: '参考', kind: 'list', rows: 4, heading: '参考', level: 2,
+                q: '参考にした資料はありますか？',
+                hint: '公式ドキュメントや参考記事へのリンク。1行が1項目になります。',
+                placeholder: 'https://example.com/docs\n[記事タイトル](https://example.com/post)',
+                deep: ['公式ドキュメント', '参考にした記事', '関連リポジトリ'],
+                comment: '<!-- 公式ドキュメントや参考にした記事へのリンク。根拠を示すのに重要。 -->'
+            },
+            {
+                id: 'topics', group: '仕上げ', label: 'トピック', kind: 'topics',
+                q: '記事のトピック（タグ）を決めましょう',
+                hint: 'カンマ・スペース区切り。Zenn では最大 5 つ、英小文字が基本です（例: typescript, react）。'
+            },
+            {
+                id: 'emoji', group: '仕上げ', label: '絵文字', kind: 'emoji',
+                q: 'アイキャッチの絵文字を選んでください',
+                hint: '記事一覧で表示される絵文字です。1文字だけ入れます。'
+            },
+            {
+                id: 'title', group: '仕上げ', label: 'タイトル', kind: 'text',
+                q: '最後にタイトルを決めましょう',
+                hint: 'タイトルは書き終わった後に決めるのがおすすめ。型をクリックすると入力欄に入ります。',
+                placeholder: '〇〇で△△を解決した話',
+                deep: ['〇〇した話', '〇〇で△△を解決した', '〇〇を△△してみた', '〇〇入門: △△編', '〇〇でハマったポイントN選']
+            }
+        ];
+        const STEP_BY_ID = Object.fromEntries(STEPS.map(s => [s.id, s]));
+        const EMOJIS = ['📝', '💡', '🔧', '🛠️', '🚀', '🐛', '⚙️', '📦', '🧪', '🔥', '🧩', '📚', '🔍', '🧠', '⚡', '🐳', '☁️', '🔐', '🎨', '📊', '🤖', '🌱', '🏗️', '🎉'];
+
+        /* ---------- state ---------- */
+        function defaultState() {
+            return { answers: { emoji: '📝' }, skipped: {}, current: 0, fillOnly: false, published: false, extras: [], keepComments: true, view: 'preview' };
+        }
+        let state = (() => {
+            try {
+                const s = JSON.parse(lsGet(KEY, ''));
+                if (s && typeof s === 'object' && s.answers) return Object.assign(defaultState(), s);
+            } catch (e) { }
+            return defaultState();
+        })();
+        const save = debounce(() => lsSet(KEY, JSON.stringify(state)), 200);
+
+        const val = id => state.answers[id];
+        function isFilled(id) {
+            const v = val(id);
+            if (Array.isArray(v)) return v.length > 0;
+            return typeof v === 'string' && v.trim() !== '';
+        }
+        const statusOf = id => isFilled(id) ? 'filled' : (state.skipped[id] ? 'skipped' : 'empty');
+        const firstUnfilled = (from = 0) => { for (let i = from; i < STEPS.length; i++) if (!isFilled(STEPS[i].id)) return i; return -1; };
+        const unfilledCount = () => STEPS.filter(s => !isFilled(s.id)).length;
+
+        /* ---------- markdown build (export) ---------- */
+        const yq = s => '"' + String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+        function listToMd(text) {
+            return text.split(/\r?\n/).map(l => l.trimEnd()).filter(l => l.trim() !== '')
+                .map(l => /^\s*([-*+]\s|\d+[.)]\s)/.test(l) ? l : '- ' + l.trim()).join('\n');
+        }
+        function sectionBody(step) {
+            const v = (val(step.id) || '').trim();
+            if (!v) return '';
+            return step.kind === 'list' ? listToMd(v) : v;
+        }
+        function buildMarkdown() {
+            const a = state.answers;
+            const out = [];
+            out.push('---');
+            out.push(isFilled('title') ? 'title: ' + yq(a.title.trim()) : 'title: "" # ' + TITLE_COMMENT);
+            out.push('emoji: ' + yq((a.emoji || '📝').trim()));
+            out.push(isFilled('type') ? 'type: ' + yq(a.type) : 'type: "" # ' + TYPE_COMMENT);
+            out.push('topics: [' + (a.topics || []).map(yq).join(', ') + ']');
+            out.push('published: ' + (state.published ? 'true' : 'false'));
+            out.push('---');
+            out.push('');
+            const extrasAfter = key => state.extras.filter(x => x.after === key).forEach(x => { out.push(x.text.trim()); out.push(''); });
+            extrasAfter('__top');
+            BODY_ORDER.forEach(id => {
+                const s = STEP_BY_ID[id];
+                out.push('#'.repeat(s.level) + ' ' + s.heading);
+                const body = sectionBody(s);
+                if (state.keepComments || !body) out.push(s.comment);
+                if (body) out.push(body);
+                out.push('');
+                extrasAfter(id);
+            });
+            return out.join('\n').replace(/\n+$/, '\n');
+        }
+
+        /* ---------- markdown parse (import) ---------- */
+        function parseScalar(raw) {
+            const v = raw.trim();
+            if (v.startsWith('"')) {
+                let s = '', i = 1;
+                for (; i < v.length; i++) {
+                    if (v[i] === '\\' && i + 1 < v.length) { s += v[++i]; continue; }
+                    if (v[i] === '"') break;
+                    s += v[i];
+                }
+                return s;
+            }
+            if (v.startsWith("'")) {
+                const m = v.match(/^'((?:[^']|'')*)'/);
+                return m ? m[1].replace(/''/g, "'") : v.slice(1);
+            }
+            return v.replace(/\s+#.*$/, '').trim();
+        }
+        function parseTopics(raw, following) {
+            let v = raw.replace(/\s+#[^"'\]]*$/, '').trim();
+            if (v.startsWith('[')) {
+                const inner = v.replace(/^\[/, '').replace(/\].*$/, '');
+                return inner.split(',').map(x => parseScalar(x)).map(x => x.trim()).filter(Boolean);
+            }
+            if (v === '' && following.length) return following.map(x => parseScalar(x.replace(/^\s*-\s*/, ''))).filter(Boolean);
+            return v ? v.split(/[,\s]+/).map(parseScalar).filter(Boolean) : [];
+        }
+        const normHeading = s => s.replace(/\s+/g, '').replace(/\(/g, '（').replace(/\)/g, '）');
+        const HEADING_MAP = (() => {
+            const m = {};
+            BODY_ORDER.forEach(id => {
+                const h = STEP_BY_ID[id].heading;
+                m[normHeading(h)] = id;
+                m[normHeading(h.replace(/（.*?）/g, ''))] = id;
+            });
+            return m;
+        })();
+        const stripComments = s => s.replace(/<!--[\s\S]*?-->/g, '');
+        function cleanBody(s, kind) {
+            let t = stripComments(s).replace(/^\s*\n/, '').replace(/\s+$/, '');
+            t = t.split('\n').filter((l, i, arr) => !(l.trim() === '' && (i === 0 || arr[i - 1].trim() === ''))).join('\n').trim();
+            if (kind === 'list') t = t.split('\n').map(l => l.replace(/^\s*[-*+]\s+/, '')).join('\n');
+            return t;
+        }
+
+        function parseMarkdown(text) {
+            text = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+            const answers = {};
+            let published = false;
+            let body = text;
+            const fm = text.match(/^---\n([\s\S]*?)\n---[ \t]*(\n|$)/);
+            if (fm) {
+                body = text.slice(fm[0].length);
+                const lines = fm[1].split('\n');
+                for (let i = 0; i < lines.length; i++) {
+                    const m = lines[i].match(/^([A-Za-z_]+)\s*:\s*(.*)$/);
+                    if (!m) continue;
+                    const key = m[1], raw = m[2];
+                    if (key === 'topics') {
+                        const following = [];
+                        while (i + 1 < lines.length && /^\s*-\s+/.test(lines[i + 1])) following.push(lines[++i]);
+                        answers.topics = parseTopics(raw, following).map(t => t.toLowerCase());
+                    } else if (key === 'title') answers.title = parseScalar(raw);
+                    else if (key === 'emoji') answers.emoji = parseScalar(raw);
+                    else if (key === 'type') { const t = parseScalar(raw).toLowerCase(); if (t === 'tech' || t === 'idea') answers.type = t; }
+                    else if (key === 'published') published = parseScalar(raw).toLowerCase() === 'true';
+                }
+            }
+            // 見出し（## / ###）で区切る。コードブロック内は無視
+            const sections = [{ heading: null, line: '', lines: [] }];
+            let fence = null;
+            body.split('\n').forEach(line => {
+                const f = line.match(/^\s*(`{3,}|~{3,})/);
+                if (f) {
+                    if (!fence) fence = f[1][0];
+                    else if (f[1][0] === fence) fence = null;
+                }
+                const h = !fence && !f && line.match(/^(#{2,3})\s+(.+?)\s*#*\s*$/);
+                if (h) sections.push({ heading: h[2], line, lines: [] });
+                else sections[sections.length - 1].lines.push(line);
+            });
+            const extras = [];
+            let last = '__top';
+            sections.forEach(sec => {
+                const content = sec.lines.join('\n');
+                if (sec.heading === null) {
+                    const t = content.trim();
+                    if (stripComments(t).trim()) extras.push({ after: '__top', text: t });
+                    return;
+                }
+                const id = HEADING_MAP[normHeading(sec.heading)];
+                if (id && answers[id] === undefined) {
+                    answers[id] = cleanBody(content, STEP_BY_ID[id].kind);
+                    last = id;
+                } else {
+                    extras.push({ after: last, text: (sec.line + '\n' + content).trim() });
+                }
+            });
+            return { answers, published, extras, hasFrontmatter: !!fm };
+        }
+
+        function importText(text) {
+            const r = parseMarkdown(text);
+            const known = Object.keys(r.answers).length;
+            if (!r.hasFrontmatter && !known) { toast('記事メモとして読み込める内容が見つかりませんでした'); return; }
+            state = Object.assign(defaultState(), {
+                answers: Object.assign({ emoji: '📝' }, r.answers),
+                published: r.published, extras: r.extras,
+                keepComments: state.keepComments, view: state.view
+            });
+            const first = firstUnfilled();
+            state.fillOnly = first !== -1;
+            state.current = first === -1 ? STEPS.length : first;
+            save(); renderAll(true);
+            const n = unfilledCount();
+            let msg = n ? `読み込みました。未記入の ${n} 項目を順番に質問します` : '読み込みました。すべての項目が記入済みです';
+            if (r.extras.length) msg += `（テンプレート外 ${r.extras.length} 件は保持）`;
+            toast(msg);
+        }
+
+        /* ---------- navigation ---------- */
+        function go(i, focus = true) {
+            state.current = Math.max(0, Math.min(STEPS.length, i));
+            save(); renderAll(focus);
+            if (window.matchMedia('(max-width: 860px)').matches) $('#wizardCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        function nextIndex() {
+            const c = state.current;
+            if (state.fillOnly) {
+                const n = firstUnfilled(c + 1);
+                return n === -1 ? STEPS.length : n;
+            }
+            return c + 1;
+        }
+        function next() {
+            const s = STEPS[state.current];
+            if (s && isFilled(s.id)) delete state.skipped[s.id];
+            go(nextIndex());
+        }
+        function skip() {
+            const s = STEPS[state.current];
+            if (s && !isFilled(s.id)) state.skipped[s.id] = true;
+            go(nextIndex());
+        }
+        function back() { go(state.current - 1); }
+
+        /* ---------- rendering: wizard ---------- */
+        const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        function setAnswer(id, v) {
+            state.answers[id] = v;
+            if (isFilled(id)) delete state.skipped[id];
+            save();
+            refreshSide();
+        }
+
+        function insertIntoTextarea(ta, text) {
+            const cur = ta.value;
+            const add = (cur && !cur.endsWith('\n') ? '\n' : '') + text;
+            ta.value = cur + add;
+            ta.focus();
+            ta.setSelectionRange(ta.value.length, ta.value.length);
+            ta.dispatchEvent(new Event('input'));
+        }
+
+        function renderWizard(focus) {
+            const w = $('#wizard');
+            const c = state.current;
+            if (c >= STEPS.length) { renderDone(w); return; }
+            const s = STEPS[c];
+            const st = statusOf(s.id);
+            const tag = s.heading ? '#'.repeat(s.level) + ' ' + s.heading : (s.id === 'type' || s.id === 'topics' || s.id === 'emoji' || s.id === 'title' ? 'frontmatter: ' + s.id : '');
+            w.innerHTML = `
+                <div class="chat">
+                    <div class="bubble-row">
+                        <div class="avatar" aria-hidden="true">🤖</div>
+                        <div class="bubble">
+                            <div class="section-tag">${esc(tag)}</div>
+                            <p class="q">${esc(s.q)}${s.optional ? '<span class="badge">任意</span>' : ''}${st === 'skipped' ? '<span class="badge skip">スキップ済み</span>' : ''}</p>
+                            <div class="hint">${esc(s.hint || '')}</div>
+                            <div id="refBox"></div>
+                            <div class="chips" id="chips"></div>
+                        </div>
+                    </div>
+                    <div class="answer" id="answer"></div>
+                </div>
+                <div class="nav">
+                    <button type="button" id="btnBack" ${c === 0 ? 'disabled' : ''}>← 戻る</button>
+                    <button type="button" id="btnSkip" title="この質問を後回しにする">スキップ</button>
+                    <button type="button" id="btnNext" class="primary">${nextIndex() >= STEPS.length ? '完了 ✓' : '次へ →'}</button>
+                    <span class="kbd">Ctrl / ⌘ + Enter で次へ</span>
+                </div>`;
+            const ans = $('#answer');
+            const chips = $('#chips');
+            let focusEl = null;
+
+            if (s.kind === 'textarea' || s.kind === 'list') {
+                ans.innerHTML = `<textarea id="ans" rows="${s.rows || 6}" placeholder="${esc(s.placeholder || 'ここに回答を書く（Markdown可）')}"></textarea>
+                    <div class="counter hint"><span>${s.kind === 'list' ? '1行 = 1項目（「- 」は自動で付きます）' : 'Markdown が使えます'}</span><span id="cnt"></span></div>`;
+                const ta = $('#ans');
+                ta.value = val(s.id) || '';
+                const cnt = () => { $('#cnt').textContent = ta.value.length + ' 文字'; };
+                cnt();
+                ta.addEventListener('input', () => { setAnswer(s.id, ta.value); cnt(); updateNavLabel(); });
+                (s.deep || []).forEach(d => {
+                    const b = document.createElement('button');
+                    b.type = 'button'; b.className = 'chip';
+                    if (typeof d === 'string') {
+                        b.textContent = d; b.title = '回答欄に問いを差し込む';
+                        b.addEventListener('click', () => insertIntoTextarea(ta, (s.kind === 'list' ? '' : '- ') + d + '：'));
+                    } else if (d.action === 'quoteWant') {
+                        b.textContent = d.label; b.classList.add('plain');
+                        b.addEventListener('click', () => {
+                            const w2 = (val('want') || '').trim();
+                            if (!w2) { toast('「この記事で伝えたいこと」が未記入です'); return; }
+                            insertIntoTextarea(ta, listToMd(w2));
+                        });
+                    }
+                    chips.appendChild(b);
+                });
+                focusEl = ta;
+            } else if (s.kind === 'text') {
+                ans.innerHTML = `<input type="text" id="ans" placeholder="${esc(s.placeholder || '')}">
+                    <div class="counter hint"><span>Zenn のタイトルは70文字以内</span><span id="cnt"></span></div>`;
+                const inp = $('#ans');
+                inp.value = val(s.id) || '';
+                const cnt = () => { const n = [...inp.value].length; $('#cnt').textContent = n + ' / 70'; $('#cnt').style.color = n > 70 ? 'var(--danger)' : ''; };
+                cnt();
+                inp.addEventListener('input', () => { setAnswer(s.id, inp.value); cnt(); updateNavLabel(); });
+                inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && !(e.ctrlKey || e.metaKey)) { e.preventDefault(); next(); } });
+                (s.deep || []).forEach(d => {
+                    const b = document.createElement('button');
+                    b.type = 'button'; b.className = 'chip plain'; b.textContent = d;
+                    b.addEventListener('click', () => { inp.value = d; inp.dispatchEvent(new Event('input')); inp.focus(); inp.select(); });
+                    chips.appendChild(b);
+                });
+                if (s.id === 'title') {
+                    const w2 = (val('want') || '').trim();
+                    if (w2) $('#refBox').innerHTML = `<div class="ref-box">伝えたいこと:\n${esc(listToMd(w2))}</div>`;
+                }
+                focusEl = inp;
+            } else if (s.kind === 'choice') {
+                ans.innerHTML = '<div class="choice-list" role="radiogroup">' + s.options.map(o => `
+                    <label class="choice"><input type="radio" name="ans" value="${o.value}" ${val(s.id) === o.value ? 'checked' : ''}>
+                    <span><b>${esc(o.title)}</b><span class="hint">${esc(o.desc)}</span></span></label>`).join('') + '</div>';
+                $$('input[name="ans"]', ans).forEach(r => r.addEventListener('change', () => {
+                    setAnswer(s.id, r.value); updateNavLabel();
+                    setTimeout(() => { if (state.current === c) next(); }, 250);
+                }));
+                focusEl = $('input[name="ans"]:checked', ans) || $('input[name="ans"]', ans);
+            } else if (s.kind === 'emoji') {
+                ans.innerHTML = `<div class="emoji-row"><input type="text" id="ans" maxlength="16" aria-label="絵文字"><span class="hint">直接入力も可（OS の絵文字ピッカー: Win + . / ⌃⌘Space）</span></div>
+                    <div class="emoji-grid" id="emojiGrid"></div>`;
+                const inp = $('#ans');
+                inp.value = val(s.id) || '';
+                const mark = () => $$('#emojiGrid button').forEach(b => b.classList.toggle('on', b.textContent === inp.value.trim()));
+                EMOJIS.forEach(e => {
+                    const b = document.createElement('button');
+                    b.type = 'button'; b.textContent = e; b.setAttribute('aria-label', e);
+                    b.addEventListener('click', () => { inp.value = e; setAnswer(s.id, e); mark(); updateNavLabel(); });
+                    $('#emojiGrid').appendChild(b);
+                });
+                mark();
+                inp.addEventListener('input', () => { setAnswer(s.id, inp.value.trim()); mark(); updateNavLabel(); });
+                focusEl = inp;
+            } else if (s.kind === 'topics') {
+                ans.innerHTML = `<input type="text" id="ans" placeholder="typescript, react, vite">
+                    <div id="tagView" style="margin-top:8px"></div>`;
+                const inp = $('#ans');
+                inp.value = (val(s.id) || []).join(', ');
+                const parse = () => {
+                    const arr = [...new Set(inp.value.split(/[,\s、，]+/).map(t => t.trim().toLowerCase().replace(/^#/, '')).filter(Boolean))];
+                    $('#tagView').innerHTML = arr.length
+                        ? arr.map((t, i) => `<span class="tag ${i >= MAX_TOPICS ? 'over' : ''}">${esc(t)}</span>`).join('') + (arr.length > MAX_TOPICS ? `<div class="hint" style="color:var(--danger)">6つ目以降は書き出しません（最大 ${MAX_TOPICS} つ）</div>` : '')
+                        : '<span class="hint">まだトピックがありません</span>';
+                    return arr.slice(0, MAX_TOPICS);
+                };
+                parse();
+                inp.addEventListener('input', () => { setAnswer(s.id, parse()); updateNavLabel(); });
+                inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && !(e.ctrlKey || e.metaKey)) { e.preventDefault(); next(); } });
+                focusEl = inp;
+            }
+
+            $('#btnBack').addEventListener('click', back);
+            $('#btnSkip').addEventListener('click', skip);
+            $('#btnNext').addEventListener('click', next);
+            if (focus && focusEl) focusEl.focus({ preventScroll: true });
+        }
+
+        function updateNavLabel() {
+            const b = $('#btnNext');
+            if (b) b.textContent = nextIndex() >= STEPS.length ? '完了 ✓' : '次へ →';
+        }
+
+        function renderDone(w) {
+            const n = unfilledCount();
+            const skipped = STEPS.filter(s => statusOf(s.id) === 'skipped').length;
+            w.innerHTML = `
+                <div class="done">
+                    <div class="big">${n ? '📋' : '🎉'}</div>
+                    <h3>${n ? 'ひととおり質問が終わりました' : '記事メモが完成しました！'}</h3>
+                    <p class="hint">${n ? `未記入 ${n} 項目（うちスキップ ${skipped}）が残っています。` : 'すべての項目が埋まりました。Markdown を書き出して記事にしましょう。'}</p>
+                    <div class="nav">
+                        ${n ? '<button type="button" id="btnFill" class="primary">未記入を順番に埋める</button>' : ''}
+                        <button type="button" id="btnDoneDl" ${n ? '' : 'class="primary"'}>.md をダウンロード</button>
+                        <button type="button" id="btnRestart">最初から見直す</button>
+                    </div>
+                </div>`;
+            const f = $('#btnFill');
+            if (f) f.addEventListener('click', () => { state.fillOnly = true; go(firstUnfilled()); });
+            $('#btnDoneDl').addEventListener('click', download);
+            $('#btnRestart').addEventListener('click', () => { state.fillOnly = false; go(0); });
+        }
+
+        /* ---------- rendering: progress / steps ---------- */
+        function renderProgress() {
+            const c = state.current;
+            const total = STEPS.length;
+            const filled = STEPS.filter(s => isFilled(s.id)).length;
+            const skipped = STEPS.filter(s => statusOf(s.id) === 'skipped').length;
+            $('#qCount').innerHTML = c >= total ? `完了 <small>/ ${total} 問</small>` : `Q${c + 1} <small>/ ${total}</small>`;
+            $('#groupLabel').textContent = c >= total ? 'おつかれさま' : STEPS[c].group;
+            $('#stats').innerHTML = `記入済み <b>${filled}</b> · スキップ <b>${skipped}</b> · 未記入 <b>${total - filled - skipped}</b>`;
+            const bar = $('#segbar');
+            if (bar.children.length !== total) {
+                bar.innerHTML = '';
+                STEPS.forEach((s, i) => {
+                    const b = document.createElement('button');
+                    b.type = 'button'; b.className = 'seg';
+                    b.addEventListener('click', () => go(i));
+                    bar.appendChild(b);
+                });
+            }
+            STEPS.forEach((s, i) => {
+                const b = bar.children[i];
+                const st = statusOf(s.id);
+                b.className = 'seg ' + st + (i === c ? ' current' : '');
+                b.title = `Q${i + 1} ${s.label}（${st === 'filled' ? '記入済み' : st === 'skipped' ? 'スキップ' : '未記入'}）`;
+                b.setAttribute('aria-label', b.title);
+            });
+            $('#pct').textContent = Math.round(filled / total * 100) + '% 完成';
+
+            const fb = $('#fillBanner');
+            const n = unfilledCount();
+            if (state.fillOnly && c < total && n) {
+                fb.hidden = false;
+                fb.innerHTML = `<span>🔁 未記入の項目だけを順番に質問中（残り ${n} 項目）</span><button type="button" id="btnFillOff">すべての質問を順に見る</button>`;
+                $('#btnFillOff').addEventListener('click', () => { state.fillOnly = false; save(); renderAll(false); });
+            } else fb.hidden = true;
+            $('#fillOnly').checked = state.fillOnly;
+        }
+
+        function renderSteps() {
+            const ul = $('#steps');
+            let html = '', grp = '';
+            STEPS.forEach((s, i) => {
+                if (s.group !== grp) { grp = s.group; html += `<li class="grp">${esc(grp)}</li>`; }
+                const st = statusOf(s.id);
+                const ico = st === 'filled' ? '✔' : st === 'skipped' ? '⏭' : '○';
+                const stTxt = st === 'filled' ? '' : st === 'skipped' ? 'スキップ' : (s.optional ? '任意' : '');
+                html += `<li><button type="button" data-i="${i}" class="${i === state.current ? 'cur' : ''}">
+                    <span class="ico ${st}">${ico}</span><span class="num">Q${i + 1}</span><span class="lbl">${esc(s.label)}</span><span class="st">${stTxt}</span></button></li>`;
+            });
+            ul.innerHTML = html;
+            $$('button[data-i]', ul).forEach(b => b.addEventListener('click', () => go(+b.dataset.i)));
+        }
+
+        /* ---------- rendering: preview ---------- */
+        let mdReady = false, mdFailed = false;
+        function mdToHtml(src) {
+            if (mdReady) return window.DOMPurify.sanitize(window.marked.parse(src, { gfm: true, breaks: true }));
+            return '<p style="white-space:pre-wrap">' + esc(src) + '</p>';
+        }
+        function renderPreview() {
+            const a = state.answers;
+            const typeTxt = a.type === 'tech' ? '💻 tech' : a.type === 'idea' ? '💡 idea' : 'type 未設定';
+            const topics = (a.topics || []).map(t => `<span class="tag">${esc(t)}</span>`).join('') || '<span>トピック未設定</span>';
+            $('#fmView').innerHTML = `<div class="emo">${esc(a.emoji || '📝')}</div>
+                <div style="min-width:0"><p class="ttl ${isFilled('title') ? '' : 'empty'}">${isFilled('title') ? esc(a.title) : '（タイトル未定）'}</p>
+                <div class="meta">${typeTxt} · ${state.published ? '公開' : '下書き (published: false)'}</div><div>${topics}</div></div>`;
+            const parts = [];
+            const extras = key => state.extras.filter(x => x.after === key).forEach(x => parts.push(`<div class="sec extra" title="テンプレート外の内容（そのまま保持）">${mdToHtml(stripComments(x.text))}</div>`));
+            extras('__top');
+            BODY_ORDER.forEach(id => {
+                const s = STEP_BY_ID[id];
+                const i = STEPS.indexOf(s);
+                const body = sectionBody(s);
+                const st = statusOf(id);
+                const h = `<h${s.level}>${esc(s.heading)}</h${s.level}>`;
+                const inner = body ? mdToHtml(body) : `<p class="empty-sec">${st === 'skipped' ? '⏭ スキップ中' : '未記入'} — クリックして答える</p>`;
+                parts.push(`<div class="sec ${i === state.current ? 'cur' : ''}" data-i="${i}">${h}<div class="body">${inner}</div></div>`);
+                extras(id);
+            });
+            $('#mdView').innerHTML = parts.join('');
+            $$('#mdView .sec[data-i]').forEach(el => el.addEventListener('click', e => {
+                if (e.target.closest('a')) return;
+                go(+el.dataset.i);
+            }));
+            $('#rawOut').textContent = buildMarkdown();
+        }
+
+        function renderView() {
+            const raw = state.view === 'raw';
+            $('#tabPreview').setAttribute('aria-selected', String(!raw));
+            $('#tabRaw').setAttribute('aria-selected', String(raw));
+            $('#previewPane').hidden = raw;
+            $('#rawOut').hidden = !raw;
+        }
+
+        const refreshSide = debounce(() => { renderProgress(); renderSteps(); renderPreview(); }, 120);
+        function renderAll(focus) {
+            renderProgress(); renderSteps(); renderWizard(focus); renderPreview(); renderView();
+            $('#keepComments').checked = state.keepComments;
+        }
+
+        /* ---------- export ---------- */
+        function download() {
+            const md = buildMarkdown();
+            const d = new Date();
+            const ymd = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+            const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `article-memo-${ymd}.md`;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            toast('ダウンロードしました');
+        }
+
+        /* ---------- events ---------- */
+        $('#tabPreview').addEventListener('click', () => { state.view = 'preview'; save(); renderView(); });
+        $('#tabRaw').addEventListener('click', () => { state.view = 'raw'; save(); renderView(); });
+        $('#btnCopy').addEventListener('click', () => copyText(buildMarkdown()));
+        $('#btnDownload').addEventListener('click', download);
+        $('#keepComments').addEventListener('change', e => { state.keepComments = e.target.checked; save(); renderPreview(); });
+        $('#fillOnly').addEventListener('change', e => {
+            state.fillOnly = e.target.checked; save();
+            renderProgress(); updateNavLabel();
+        });
+
+        let resetTimer;
+        $('#btnReset').addEventListener('click', e => {
+            const b = e.currentTarget;
+            if (!b.classList.contains('armed')) {
+                b.classList.add('armed'); b.textContent = 'もう一度押すと消去';
+                clearTimeout(resetTimer);
+                resetTimer = setTimeout(() => { b.classList.remove('armed'); b.textContent = '新規作成'; }, 3000);
+                return;
+            }
+            clearTimeout(resetTimer);
+            b.classList.remove('armed'); b.textContent = '新規作成';
+            state = Object.assign(defaultState(), { keepComments: state.keepComments, view: state.view });
+            save(); renderAll(true);
+            toast('新しい記事メモを始めます');
+        });
+
+        setupDrop($('#drop'), $('#fileIn'), f => {
+            const r = new FileReader();
+            r.onload = () => importText(String(r.result));
+            r.onerror = () => toast('ファイルを読み込めませんでした');
+            r.readAsText(f);
+        });
+        $('#btnPaste').addEventListener('click', () => {
+            const t = $('#pasteIn').value;
+            if (!t.trim()) { toast('貼り付け欄が空です'); return; }
+            importText(t);
+            $('#pasteIn').value = '';
+            $('#pasteIn').closest('details').open = false;
+        });
+
+        document.addEventListener('keydown', e => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && state.current < STEPS.length) {
+                e.preventDefault(); next();
+            }
+        });
+
+        renderAll(false);
+
+        (async () => {
+            try {
+                await loadScript(MARKED_JS);
+                await loadScript(PURIFY_JS);
+                mdReady = true;
+            } catch (e) {
+                mdFailed = true;
+                $('#libErr').hidden = false;
+                $('#libErr').textContent = 'Markdown ライブラリの読み込みに失敗したため、プレビューはプレーンテキストで表示しています（書き出しには影響しません）。';
+            }
+            renderPreview();
+        })();
+
+        initCommon({
+            steps: () => [
+                { popover: { title: '📝 Article Memo Wizard', description: '質問に順番に答えるだけで、Zenn 記事テンプレートに沿った「記事を書く前のメモ」ができあがります。入力はこのブラウザ内に自動保存されます。' } },
+                { element: '#progress', popover: { title: '進捗', description: 'いま何問目か、記入済み・スキップ・未記入の数が出ます。バーの各マスをクリックするとその質問へ移動します。', side: 'bottom', align: 'start' } },
+                { element: '#wizard', popover: { title: '① 質問に答える', description: '「＋」の深掘り質問をクリックすると回答欄に問いが入ります。答えにくい質問は「スキップ」で後回しにできます。Ctrl / ⌘ + Enter で次へ。', side: 'right', align: 'start' } },
+                { element: '#stepsCard', popover: { title: '② 項目一覧', description: '全項目の状態の一覧です。「未記入だけ巡回」をオンにすると、記入済みの質問を飛ばして進みます。', side: 'right', align: 'start' } },
+                { element: '#previewCard', popover: { title: '③ プレビュー / エクスポート', description: '記事の形でリアルタイムに確認できます。見出しをクリックするとその質問へ。Markdown タブで出力を確認し、コピーや .md ダウンロードができます。', side: 'left', align: 'start' } },
+                { element: '#importCard', popover: { title: '④ インポート', description: '書き出した .md や書きかけの記事を読み込むと、埋まっていない項目から順番に質問します。', side: 'left', align: 'start' } },
+                { element: '#btnTheme', popover: { title: 'ライト / ダーク', description: '「自動（OS設定）」「ライト」「ダーク」を順に切り替えます。', side: 'bottom', align: 'end' } },
+                { element: '#btnHelp', popover: { title: 'ツアーをもう一度', description: 'このボタンでいつでも再表示できます。URLに ?onBoarding=1 を付けて開いても始まります。', side: 'bottom', align: 'end' } }
+            ]
+        });
+    </script>
+<style>@media print{#tool-backlink{display:none!important}}</style><footer id="tool-backlink" style="flex:none;max-width:1200px;margin:0 auto;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));text-align:center"><a href="../index.html" style="display:inline-block;padding:6px 14px;border-radius:999px;background:rgba(127,127,127,.15);color:inherit;font:600 12px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.08em;text-decoration:none;opacity:.85">&larr; 一覧に戻る</a></footer>
+</body>
+
+</html>

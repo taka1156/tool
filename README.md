@@ -16,6 +16,7 @@
 | 画像系 | ogp | `docs/feat/ogp_gen.html` | タイトルと背景から 1200×630 のOGP画像と meta タグを生成 |
 | ドキュメント系 | markdown | `docs/feat/gfm_md.html` | マークダウン編集・プレビュー・PDF化 |
 | ドキュメント系 | mermaid | `docs/feat/mermaid.html` | Mermaid図の編集・プレビュー・SVG/PNG保存 |
+| ドキュメント系 | article memo | `docs/feat/article_memo.html` | 対話形式の質問に答えてZenn記事テンプレートに沿った記事メモを作成・プレビュー・Markdown入出力 |
 | その他 | wrangler config | `docs/feat/wrangler_config.html` | フォーム入力から wrangler.jsonc / wrangler.toml を生成 |
 | その他 | qr | `docs/feat/qr.html` | QRコード生成・読み取り・画像転送（PC⇄スマホ） |
 
@@ -60,6 +61,19 @@ Cloudflare Workersの設定を入力し、`wrangler.jsonc` または `wrangler.t
 - Queue、Service Binding、Workflow、Hyperdriveなど、このツールに入力欄がないBindings
 - `build`、`dev`、`limits`、`placement`などの追加のWrangler設定
 - `zone_id`やCustom Domainなど、Routesの追加オプション
+
+### article memo
+
+`docs/feat/article_memo.html`
+
+質問に順番に答えて、記事を書く前の「記事メモ」を作るウィザードです。出力は [zenn-writing-environment の記事テンプレート](https://github.com/taka1156/zenn-writing-environment/blob/master/template/article.md) に沿った Markdown です。
+
+- 全15問のウィザード（Q番号・進捗バー・記入済み / スキップ / 未記入の件数）
+- 深掘り質問のボタンで回答欄に問いを差し込み
+- 質問のスキップと、未記入の項目だけを順に巡回するモード
+- 記事の形のプレビューと Markdown 表示（見出しをクリックでその質問へ）
+- Markdown のコピー・.md ダウンロード（ガイドコメントを残すか選択可）
+- .md のインポート（ファイル選択・ドラッグ&ドロップ・貼り付け）。未記入の項目から順番に質問し、テンプレート外の見出しは保持
 
 ## Claude に頼むとき
 
