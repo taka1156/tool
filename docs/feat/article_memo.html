@@ -1055,20 +1055,17 @@
             <section class="card" id="importCard">
                 <h2>④ インポート</h2>
                 <div class="drop" id="drop" tabindex="0" role="button">
-                    書きかけの記事メモ（.md）をドロップ、またはクリックして選択
+                    書きかけの記事メモ（.md）または質問設定（.json）をドロップ、またはクリックして選択
                 </div>
-                <input type="file" id="fileIn" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden>
+                <input type="file" id="fileIn" accept=".md,.markdown,.txt,.json,text/markdown,text/plain,application/json" hidden>
                 <details>
-                    <summary>テキストを貼り付けて読み込む</summary>
+                    <summary>Markdown を貼り付けて読み込む</summary>
                     <textarea id="pasteIn" placeholder="---&#10;title: &quot;&quot;&#10;...&#10;---&#10;&#10;## この記事で伝えたいこと"></textarea>
                     <div style="margin-top:6px"><button id="btnPaste" type="button">読み込む</button></div>
+                    <p class="hint" style="margin:6px 0 0">AI の出力をそのまま貼ってかまいません（コードフェンスは外して読みます）。</p>
                 </details>
                 <p class="hint" style="margin:8px 0 0">読み込むと現在の内容は置き換わり、未記入の項目から順番に質問します。frontmatter は今の質問設定（形式・項目）に合わせて読み、合わない項目は警告して値を残します。テンプレートにない見出しはそのまま保持して書き出します。</p>
                 <div id="importReport" hidden style="margin-top:8px;font-size:13px;color:var(--text-secondary)"></div>
-                <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-                    <button id="btnCfgIn" type="button">質問設定（JSON）を読み込む</button>
-                    <input type="file" id="cfgIn" accept=".json,application/json" hidden>
-                </div>
                 <details style="margin-top:8px">
                     <summary>質問設定（JSON）を貼り付けて読み込む</summary>
                     <textarea id="cfgPaste" rows="6" placeholder="{&#10;  &quot;version&quot;: 1,&#10;  &quot;format&quot;: &quot;free&quot;,&#10;  ...&#10;}"></textarea>
@@ -2502,12 +2499,14 @@
             toast('新しい記事メモを始めます');
         });
 
-        setupDrop($('#drop'), $('#fileIn'), f => {
+        // ドロップ・選択の両方を、拡張子で振り分ける（.json は質問設定、それ以外は記事メモ）
+        function importFile(f) {
             const r = new FileReader();
-            r.onload = () => importText(String(r.result));
+            r.onload = () => (/\.json$/i.test(f.name) ? importConfig(String(r.result)) : importText(String(r.result)));
             r.onerror = () => toast('ファイルを読み込めませんでした');
             r.readAsText(f);
-        });
+        }
+        setupDrop($('#drop'), $('#fileIn'), importFile);
         $('#btnPaste').addEventListener('click', () => {
             const t = $('#pasteIn').value;
             if (!t.trim()) { toast('貼り付け欄が空です'); return; }
@@ -2602,22 +2601,12 @@
             renderImportReport(lines);
             toast('質問設定を読み込みました');
         }
-        $('#btnCfgIn').addEventListener('click', () => $('#cfgIn').click());
         $('#btnCfgPaste').addEventListener('click', () => {
             const t = $('#cfgPaste').value;
             if (!t.trim()) { toast('貼り付け欄が空です'); return; }
             importConfig(t);
             $('#cfgPaste').value = '';
             $('#cfgPaste').closest('details').open = false;
-        });
-        $('#cfgIn').addEventListener('change', e => {
-            const f = e.target.files[0];
-            e.target.value = '';
-            if (!f) return;
-            const r = new FileReader();
-            r.onload = () => importConfig(String(r.result));
-            r.onerror = () => toast('ファイルを読み込めませんでした');
-            r.readAsText(f);
         });
 
         document.addEventListener('keydown', e => {
