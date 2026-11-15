@@ -1070,6 +1070,12 @@
                     <input type="file" id="cfgIn" accept=".json,application/json" hidden>
                 </div>
                 <details style="margin-top:8px">
+                    <summary>質問設定（JSON）を貼り付けて読み込む</summary>
+                    <textarea id="cfgPaste" rows="6" placeholder="{&#10;  &quot;version&quot;: 1,&#10;  &quot;format&quot;: &quot;free&quot;,&#10;  ...&#10;}"></textarea>
+                    <div style="margin-top:6px"><button id="btnCfgPaste" type="button">読み込む</button></div>
+                    <p class="hint" style="margin:6px 0 0">AI の出力をそのまま貼ってかまいません（```json のコードフェンスは外して読みます）。</p>
+                </details>
+                <details style="margin-top:8px">
                     <summary>質問設定（JSON）の書き方</summary>
                     <div class="hint" style="margin-top:6px;line-height:1.7">
                         <p style="margin:0 0 6px">読み込むと、<b>形式</b>と<b>完全自由の frontmatter 項目（キー・型）</b>が切り替わります。質問の文言・順番・hint は変わりません。本文の回答は消えません。</p>
@@ -2505,7 +2511,7 @@
         $('#btnPaste').addEventListener('click', () => {
             const t = $('#pasteIn').value;
             if (!t.trim()) { toast('貼り付け欄が空です'); return; }
-            importText(t);
+            importText(unfence(t));
             $('#pasteIn').value = '';
             $('#pasteIn').closest('details').open = false;
         });
@@ -2564,7 +2570,13 @@
                 + lines.map(l => `<li>${esc(l)}</li>`).join('') + '</ul>';
         }
         // 質問設定（JSON）を読み込む。形式と frontmatter の項目（キー・型）を置き換える
+        // AI の出力のように ``` で囲まれていたら中身だけを取り出す
+        function unfence(t) {
+            const m = t.trim().match(/^```[\w-]*[^\n]*\n([\s\S]*?)\n?```$/);
+            return m ? m[1] : t;
+        }
         function importConfig(text) {
+            text = unfence(text);
             let cfg;
             try { cfg = JSON.parse(text); } catch (e) { toast('JSON として読めませんでした'); return; }
             if (!cfg || cfg.version !== 1 || !FORMATS.includes(cfg.format) || !Array.isArray(cfg.questions)) {
@@ -2591,6 +2603,13 @@
             toast('質問設定を読み込みました');
         }
         $('#btnCfgIn').addEventListener('click', () => $('#cfgIn').click());
+        $('#btnCfgPaste').addEventListener('click', () => {
+            const t = $('#cfgPaste').value;
+            if (!t.trim()) { toast('貼り付け欄が空です'); return; }
+            importConfig(t);
+            $('#cfgPaste').value = '';
+            $('#cfgPaste').closest('details').open = false;
+        });
         $('#cfgIn').addEventListener('change', e => {
             const f = e.target.files[0];
             e.target.value = '';
