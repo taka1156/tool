@@ -1220,7 +1220,7 @@
         // テンプレート（taka1156/zenn-writing-environment template/article.md）に対応する質問
         const TITLE_COMMENT = 'タイトルは書き終わった後に決める。「〇〇した話」「〇〇でXXを解決した」など';
         const TYPE_COMMENT = 'tech or idea';
-        const BODY_ORDER = ['want', 'reader', 'background', 'cause', 'solution', 'env', 'impl', 'result', 'caveat', 'summary', 'refs'];
+        let BODY_ORDER = ['want', 'reader', 'background', 'cause', 'solution', 'env', 'impl', 'result', 'caveat', 'summary', 'refs'];
 
         const LEGACY_STEPS = [
             {
@@ -1332,8 +1332,9 @@
             }
         ];
         const pick = id => ({ ...LEGACY_STEPS.find(s => s.id === id) });
-        const BODY_STEPS = LEGACY_STEPS.filter(s => !['type', 'topics', 'emoji', 'title'].includes(s.id));
-        const BODY_BY_ID = Object.fromEntries(BODY_STEPS.map(s => [s.id, s]));
+        const DEFAULT_BODY_STEPS = LEGACY_STEPS.filter(s => !['type', 'topics', 'emoji', 'title'].includes(s.id));
+        let BODY_STEPS = DEFAULT_BODY_STEPS;
+        let BODY_BY_ID = Object.fromEntries(BODY_STEPS.map(s => [s.id, s]));
         const FORMATS = ['zenn', 'qiita', 'free'];
         const FORMAT_STEP = {
             id: 'format', group: '方向性', label: 'フォーマット', kind: 'choice',
@@ -1708,7 +1709,7 @@
 
         /* ---------- state ---------- */
         function defaultState() {
-            return { answers: { emoji: '📝' }, skipped: {}, current: 0, fillOnly: false, published: false, extras: [], keepComments: true, view: 'preview', freeFields: [], fmExtras: [] };
+            return { answers: { emoji: '📝' }, skipped: {}, current: 0, fillOnly: false, published: false, extras: [], keepComments: true, view: 'preview', freeFields: [], bodyQuestions: null, fmExtras: [] };
         }
         let state = (() => {
             try {
@@ -1873,15 +1874,7 @@
             return 'text';
         }
         const normHeading = s => s.replace(/\s+/g, '').replace(/\(/g, '（').replace(/\)/g, '）');
-        const HEADING_MAP = (() => {
-            const m = {};
-            BODY_ORDER.forEach(id => {
-                const h = BODY_BY_ID[id].heading;
-                m[normHeading(h)] = id;
-                m[normHeading(h.replace(/（.*?）/g, ''))] = id;
-            });
-            return m;
-        })();
+        let HEADING_MAP = {};
         const stripComments = s => s.replace(/<!--[\s\S]*?-->/g, '');
         function cleanBody(s, kind) {
             let t = stripComments(s).replace(/^\s*\n/, '').replace(/\s+$/, '');
@@ -1962,7 +1955,7 @@
             const keepFields = freeFields();
             state = Object.assign(defaultState(), {
                 answers: Object.assign({ emoji: '📝' }, r.answers, { format: fmt }),
-                freeFields: keepFields, fmExtras: r.fmExtras, published: r.published, extras: r.extras,
+                freeFields: keepFields, bodyQuestions: state.bodyQuestions, fmExtras: r.fmExtras, published: r.published, extras: r.extras,
                 keepComments: state.keepComments, view: state.view
             });
             rebuildSteps();
@@ -2493,7 +2486,7 @@
             clearTimeout(resetTimer);
             b.classList.remove('armed'); b.textContent = '新規作成';
             const cfgFmt = curFormat(), cfgFields = freeFields();
-            state = Object.assign(defaultState(), { keepComments: state.keepComments, view: state.view, freeFields: cfgFields });
+            state = Object.assign(defaultState(), { keepComments: state.keepComments, view: state.view, freeFields: cfgFields, bodyQuestions: state.bodyQuestions });
             state.answers.format = cfgFmt;
             save(); renderAll(true);
             toast('新しい記事メモを始めます');
@@ -2516,6 +2509,44 @@
         });
 
         const FORMAT_NAME = { zenn: 'Zenn 風', qiita: 'Qiita 風', free: '完全自由' };
+        const RESERVED_IDS = ['format', 'type', 'title', 'emoji', 'topics', 'tags', 'private', 'fields', 'published'];
+        // 質問設定の本文の項目（group: 本文・heading 付き）を画面の質問に変換する
+        function bodyStepFromConfig(q) {
+            if (!q || q.group !== '本文' || typeof q.heading !== 'string' || !q.heading.trim()) return null;
+            if (RESERVED_IDS.includes(q.id)) return null;
+            let def;
+            if (q.kind === 'textarea_markdown') def = { kind: 'textarea' };
+            else if (q.kind === 'list_lines') def = { kind: 'list' };
+            else if (q.kind === 'choice_single' || q.kind === 'choice_multi') {
+                if (!Array.isArray(q.options) || !q.options.length) return null;
+                def = { kind: 'choice', multi: q.kind === 'choice_multi', options: q.options };
+            } else def = FIELD_STEP_DEFS[q.kind];
+            if (!def) return null;
+            return Object.assign({
+                id: q.id, group: '本文', label: q.label || q.heading, q: q.question || q.heading,
+                hint: q.hint || '', heading: q.heading, level: q.level === 3 ? 3 : 2,
+                comment: q.comment || '', optional: !!q.optional, placeholder: q.placeholder,
+                rows: q.rows, deep: Array.isArray(q.deep) ? q.deep : []
+            }, def);
+        }
+        // 本文の定義を、保存されている質問設定（なければ標準）から組み直す
+        function applyBody() {
+            const src = state && Array.isArray(state.bodyQuestions) && state.bodyQuestions.length ? state.bodyQuestions : null;
+            const defs = src ? src.map(bodyStepFromConfig).filter(Boolean) : DEFAULT_BODY_STEPS;
+            BODY_STEPS = defs;
+            BODY_BY_ID = Object.fromEntries(defs.map(s => [s.id, s]));
+            BODY_ORDER = defs.map(s => s.id);
+            HEADING_MAP = makeHeadingMap();
+        }
+        function makeHeadingMap() {
+            const m = {};
+            BODY_ORDER.forEach(id => {
+                const h = BODY_BY_ID[id].heading;
+                m[normHeading(h)] = id;
+                m[normHeading(h.replace(/（.*?）/g, ''))] = id;
+            });
+            return m;
+        }
         function detectFormat(keys) {
             if (keys.some(k => ['type', 'emoji', 'topics'].includes(k))) return 'zenn';
             if (keys.includes('tags') && keys.some(k => ['private', 'slide', 'organization_url_name', 'id'].includes(k))) return 'qiita';
@@ -2591,10 +2622,29 @@
                     fields.push({ id: newFieldId(), key: q.key, kind: q.kind });
                 });
                 state.freeFields = fields;
-                lines.push(`項目 ${fields.length} 件を読み込みました`);
+                lines.push(`frontmatter の項目 ${fields.length} 件を読み込みました`);
             } else {
                 lines.push(`形式を「${FORMAT_NAME[cfg.format]}」に切り替えました。frontmatter の項目はこの形式の固定項目です`);
             }
+            // 本文（group: 本文）。見出しと型が揃うものだけを本文にする
+            const oldIds = [...BODY_ORDER];
+            const accepted = [];
+            cfg.questions.filter(q => q && q.group === '本文').forEach(q => {
+                if (!q.heading) { lines.push(`${q.id || '（id なし）'}: heading がないため本文に含めません`); return; }
+                if (RESERVED_IDS.includes(q.id)) { lines.push(`${q.id}: 予約された id のため本文に含めません`); return; }
+                if (!bodyStepFromConfig(q)) { lines.push(`${q.id}: 未対応の型（${q.kind}）のため本文に含めません`); return; }
+                accepted.push(q);
+            });
+            if (accepted.length) {
+                state.bodyQuestions = accepted;
+                lines.push(`本文の項目 ${accepted.length} 件を読み込みました`);
+                const newIds = accepted.map(q => q.id);
+                const dropped = oldIds.filter(id => !newIds.includes(id) && isFilled(id));
+                if (dropped.length) lines.push(`本文から外れた項目 ${dropped.length} 件（${dropped.join(', ')}）は、回答を残しますが書き出しには含みません`);
+            } else {
+                lines.push('本文の項目が 1 つもないため、本文は今のままです');
+            }
+            applyBody();
             rebuildSteps();
             if (state.current > STEPS.length) state.current = STEPS.length;
             save(); renderAll(false);
@@ -2615,6 +2665,7 @@
             }
         });
 
+        applyBody();
         rebuildSteps();
         renderAll(false);
 
