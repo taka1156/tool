@@ -1063,7 +1063,13 @@
                     <textarea id="pasteIn" placeholder="---&#10;title: &quot;&quot;&#10;...&#10;---&#10;&#10;## この記事で伝えたいこと"></textarea>
                     <div style="margin-top:6px"><button id="btnPaste" type="button">読み込む</button></div>
                 </details>
-                <p class="hint" style="margin:8px 0 0">読み込むと現在の内容は置き換わり、未記入の項目から順番に質問します。テンプレートにない見出しはそのまま保持して書き出します。</p>
+                <p class="hint" style="margin:8px 0 0">読み込むと現在の内容は置き換わり、未記入の項目から順番に質問します。frontmatter は今の質問設定（形式・項目）に合わせて読み、合わない項目は警告して値を残します。テンプレートにない見出しはそのまま保持して書き出します。</p>
+                <div id="importReport" hidden style="margin-top:8px;font-size:13px;color:var(--text-secondary)"></div>
+                <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+                    <button id="btnCfgIn" type="button">質問設定（JSON）を読み込む</button>
+                    <input type="file" id="cfgIn" accept=".json,application/json" hidden>
+                </div>
+                <p class="hint" style="margin:6px 0 0">質問設定の JSON は「形式」と「frontmatter の項目（キー・型）」を読み込みます。質問の文言や順番は変わりません。</p>
             </section>
         </div>
     </main>
@@ -1673,7 +1679,7 @@
 
         /* ---------- state ---------- */
         function defaultState() {
-            return { answers: { emoji: '📝' }, skipped: {}, current: 0, fillOnly: false, published: false, extras: [], keepComments: true, view: 'preview', freeFields: [] };
+            return { answers: { emoji: '📝' }, skipped: {}, current: 0, fillOnly: false, published: false, extras: [], keepComments: true, view: 'preview', freeFields: [], fmExtras: [] };
         }
         let state = (() => {
             try {
@@ -1709,7 +1715,8 @@
         function yamlScalar(kind, v) {
             switch (kind) {
                 case 'number':
-                    return v !== undefined && String(v).trim() !== '' && !isNaN(Number(v)) ? String(Number(v)) : '""';
+                    if (v === undefined || String(v).trim() === '') return '""';
+                    return isNaN(Number(v)) ? yq(String(v)) : String(Number(v));
                 case 'bool':
                     return v === 'true' ? 'true' : 'false';
                 case 'datetime':
@@ -1758,6 +1765,7 @@
                     }
                 });
             }
+            (state.fmExtras || []).forEach(b => b.split('\n').forEach(l => out.push(l)));
             out.push('---');
             out.push('');
             const extrasAfter = key => state.extras.filter(x => x.after === key).forEach(x => { out.push(x.text.trim()); out.push(''); });
@@ -1798,17 +1806,20 @@
             for (let i = 0; i < lines.length; i++) {
                 const m = lines[i].match(/^([A-Za-z_][\w-]*)\s*:\s*(.*)$/);
                 if (!m) continue;
-                const key = m[1], raw = m[2].trim();
+                const key = m[1], raw = m[2].trim(), start = i;
+                let entry;
                 if (raw === '') {
                     const list = [];
                     while (i + 1 < lines.length && /^\s*-\s+/.test(lines[i + 1])) list.push(parseScalar(lines[++i].replace(/^\s*-\s*/, '')));
-                    map[key] = list.length ? { v: list, q: false } : { v: '', q: false };
+                    entry = list.length ? { v: list, q: false } : { v: '', q: false };
                 } else if (raw.startsWith('[')) {
                     const inner = raw.replace(/^\[/, '').replace(/\].*$/, '');
-                    map[key] = { v: inner.split(',').map(x => parseScalar(x).trim()).filter(Boolean), q: false };
+                    entry = { v: inner.split(',').map(x => parseScalar(x).trim()).filter(Boolean), q: false };
                 } else {
-                    map[key] = { v: parseScalar(raw), q: /^["']/.test(raw) };
+                    entry = { v: parseScalar(raw), q: /^["']/.test(raw) };
                 }
+                entry.raw = lines.slice(start, i + 1).join('\n');
+                map[key] = entry;
             }
             return map;
         }
@@ -1853,39 +1864,34 @@
         function parseMarkdown(text) {
             text = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
             const answers = {};
-            let published = false, format = 'zenn', freeFields = [];
+            const warnings = [], missing = [], fmExtras = [];
+            let published = false;
             let body = text;
+            const fmt = curFormat();
             const fm = text.match(/^---\n([\s\S]*?)\n---[ \t]*(\n|$)/);
             if (fm) {
                 body = text.slice(fm[0].length);
                 const map = parseFrontMatterMap(fm[1]);
-                const has = k => Object.prototype.hasOwnProperty.call(map, k);
-                const keys = Object.keys(map);
-                if (keys.some(k => ['type', 'emoji', 'topics'].includes(k))) format = 'zenn';
-                else if (has('tags') && keys.some(k => ['private', 'slide', 'organization_url_name', 'id'].includes(k))) format = 'qiita';
-                else format = 'free';
-
-                if (format === 'zenn') {
-                    if (has('title')) answers.title = fmStr(map.title);
-                    if (has('emoji')) answers.emoji = fmStr(map.emoji);
-                    if (has('type')) { const t = fmStr(map.type).toLowerCase(); if (t === 'tech' || t === 'idea') answers.type = t; }
-                    if (has('topics')) answers.topics = fmList(map.topics).map(t => t.toLowerCase());
-                    if (has('published')) published = fmStr(map.published).toLowerCase() === 'true';
-                } else if (format === 'qiita') {
-                    if (has('title')) answers.title = fmStr(map.title);
-                    answers.tags = fmList(map.tags);
-                    answers.private = fmStr(map.private).toLowerCase() === 'true' ? 'true' : 'false';
-                } else {
-                    freeFields = keys.map(k => {
-                        const e = map[k], id = newFieldId();
-                        let kind = guessKind(e);
-                        if (kind === 'text' && /_at$/.test(k) && fmStr(e) === '') kind = 'datetime';
-                        answers[id] = kind === 'text_tags' ? fmList(e) : kind === 'bool' ? (fmStr(e) === 'true' ? 'true' : 'false') : fmStr(e);
-                        return { id, key: k, kind };
-                    });
-                }
+                const detected = detectFormat(Object.keys(map));
+                if (detected !== fmt) warnings.push(`ファイルの frontmatter は「${FORMAT_NAME[detected]}」の形に見えますが、設定の形式は「${FORMAT_NAME[fmt]}」です。設定に合わせて読みました`);
+                const spec = fmSpec(fmt);
+                const known = new Set(spec.map(x => x.key));
+                spec.forEach(item => {
+                    if (!Object.prototype.hasOwnProperty.call(map, item.key)) { missing.push(item.key); return; }
+                    const res = convertFm(item, map[item.key]);
+                    if (res.warn) warnings.push(`${item.key}: ${res.warn}`);
+                    if (res.skip) return;
+                    if (item.id === '__published') published = res.value === 'true';
+                    else answers[item.id] = res.value;
+                });
+                Object.keys(map).forEach(k => {
+                    if (known.has(k)) return;
+                    fmExtras.push(map[k].raw);
+                    warnings.push(`${k}: 設定にない項目です。値は変えずにそのまま保持して書き出します`);
+                });
+            } else {
+                warnings.push('frontmatter がないため、設定の項目はすべて未記入のままです');
             }
-            answers.format = format;
             // 見出し（## / ###）で区切る。コードブロック内は無視
             const sections = [{ heading: null, line: '', lines: [] }];
             let fence = null;
@@ -1916,16 +1922,18 @@
                     extras.push({ after: last, text: (sec.line + '\n' + content).trim() });
                 }
             });
-            return { answers, published, extras, hasFrontmatter: !!fm, format, freeFields };
+            return { answers, published, extras, fmExtras, warnings, missing, hasFrontmatter: !!fm };
         }
 
         function importText(text) {
             const r = parseMarkdown(text);
-            const known = Object.keys(r.answers).filter(k => k !== 'format').length;
+            const known = Object.keys(r.answers).length;
             if (!r.hasFrontmatter && !known) { toast('記事メモとして読み込める内容が見つかりませんでした'); return; }
+            const fmt = curFormat();
+            const keepFields = freeFields();
             state = Object.assign(defaultState(), {
-                answers: Object.assign({ emoji: '📝' }, r.answers),
-                freeFields: r.freeFields, published: r.published, extras: r.extras,
+                answers: Object.assign({ emoji: '📝' }, r.answers, { format: fmt }),
+                freeFields: keepFields, fmExtras: r.fmExtras, published: r.published, extras: r.extras,
                 keepComments: state.keepComments, view: state.view
             });
             rebuildSteps();
@@ -1933,10 +1941,12 @@
             state.fillOnly = first !== -1;
             state.current = first === -1 ? STEPS.length : first;
             save(); renderAll(true);
+            const lines = [...r.warnings];
+            if (r.missing.length) lines.push(`設定の項目のうち、ファイルにないもの: ${r.missing.join(', ')}（未記入のまま）`);
+            if (r.extras.length) lines.push(`テンプレート外の見出し ${r.extras.length} 件は保持して書き出します`);
+            renderImportReport(lines.length ? lines : ['設定どおりに読み込みました']);
             const n = unfilledCount();
-            let msg = n ? `読み込みました。未記入の ${n} 項目を順番に質問します` : '読み込みました。すべての項目が記入済みです';
-            if (r.extras.length) msg += `（テンプレート外 ${r.extras.length} 件は保持）`;
-            toast(msg);
+            toast(n ? `読み込みました。未記入の ${n} 項目を順番に質問します` : '読み込みました。すべての項目が記入済みです');
         }
 
         /* ---------- navigation ---------- */
@@ -2435,7 +2445,9 @@
             }
             clearTimeout(resetTimer);
             b.classList.remove('armed'); b.textContent = '新規作成';
-            state = Object.assign(defaultState(), { keepComments: state.keepComments, view: state.view });
+            const cfgFmt = curFormat(), cfgFields = freeFields();
+            state = Object.assign(defaultState(), { keepComments: state.keepComments, view: state.view, freeFields: cfgFields });
+            state.answers.format = cfgFmt;
             save(); renderAll(true);
             toast('新しい記事メモを始めます');
         });
@@ -2452,6 +2464,97 @@
             importText(t);
             $('#pasteIn').value = '';
             $('#pasteIn').closest('details').open = false;
+        });
+
+        const FORMAT_NAME = { zenn: 'Zenn 風', qiita: 'Qiita 風', free: '完全自由' };
+        function detectFormat(keys) {
+            if (keys.some(k => ['type', 'emoji', 'topics'].includes(k))) return 'zenn';
+            if (keys.includes('tags') && keys.some(k => ['private', 'slide', 'organization_url_name', 'id'].includes(k))) return 'qiita';
+            return 'free';
+        }
+        // 取り込みの基準。今の形式の frontmatter 項目（キー・型）
+        function fmSpec(fmt = curFormat()) {
+            if (fmt === 'zenn') return [
+                { key: 'title', id: 'title', kind: 'text' },
+                { key: 'emoji', id: 'emoji', kind: 'emoji_single' },
+                { key: 'type', id: 'type', kind: 'choice_single', options: ['tech', 'idea'] },
+                { key: 'topics', id: 'topics', kind: 'text_tags', lower: true },
+                { key: 'published', id: '__published', kind: 'bool' }
+            ];
+            if (fmt === 'qiita') return [
+                { key: 'title', id: 'title', kind: 'text' },
+                { key: 'tags', id: 'tags', kind: 'text_tags' },
+                { key: 'private', id: 'private', kind: 'bool' }
+            ];
+            return freeFields().map(f => ({ key: f.key, id: f.id, kind: f.kind }));
+        }
+        // 1 項目の値を型に合わせて読む。合わない値は警告を付けて、値は残す（choice は未記入にする）
+        function convertFm(item, e) {
+            const k = item.kind;
+            if (k === 'text_tags' || k === 'emoji_multi') {
+                const arr = fmList(e);
+                return { value: item.lower ? arr.map(t => t.toLowerCase()) : arr };
+            }
+            if (k === 'bool') {
+                const b = fmStr(e).toLowerCase();
+                if (b === 'true' || b === 'false') return { value: b };
+                return { value: 'false', warn: `true か false ではない値（${b || '空'}）です。書き出しは false になります` };
+            }
+            if (k === 'choice_single') {
+                const c = fmStr(e).toLowerCase();
+                if (item.options.includes(c)) return { value: c };
+                return { skip: true, warn: `選択肢（${item.options.join(' / ')}）にない値（${c || '空'}）のため、未記入にしました` };
+            }
+            const s = fmStr(e);
+            if (Array.isArray(e.v)) return { value: s, warn: 'リストで書かれていますが、文字列として読みました' };
+            if (k === 'number' && s !== '' && isNaN(Number(s))) return { value: s, warn: '数値ではない値です' };
+            if (k === 'date' && s && !/^\d{4}-\d{2}-\d{2}$/.test(s)) return { value: s, warn: '日付（YYYY-MM-DD）ではない値です' };
+            if (k === 'datetime' && s && isNaN(new Date(s))) return { value: s, warn: '日時として読めない値です' };
+            if (k === 'url' && s && !/^https?:\/\//.test(s)) return { value: s, warn: 'URL ではない値です' };
+            return { value: s };
+        }
+        function renderImportReport(lines) {
+            const el = $('#importReport');
+            el.hidden = false;
+            el.innerHTML = '<b style="color:var(--text-primary)">取り込みの結果</b><ul style="margin:4px 0 0;padding-left:18px">'
+                + lines.map(l => `<li>${esc(l)}</li>`).join('') + '</ul>';
+        }
+        // 質問設定（JSON）を読み込む。形式と frontmatter の項目（キー・型）を置き換える
+        function importConfig(text) {
+            let cfg;
+            try { cfg = JSON.parse(text); } catch (e) { toast('JSON として読めませんでした'); return; }
+            if (!cfg || cfg.version !== 1 || !FORMATS.includes(cfg.format) || !Array.isArray(cfg.questions)) {
+                toast('質問設定の形式が合いません（version / format / questions を確認してください）');
+                return;
+            }
+            const lines = [];
+            state.answers.format = cfg.format;
+            if (cfg.format === 'free') {
+                const fields = [];
+                cfg.questions.filter(q => q && q.frontmatter && q.key).forEach(q => {
+                    if (!FIELD_STEP_DEFS[q.kind]) { lines.push(`${q.key}: 未対応の型（${q.kind}）のため読み飛ばしました`); return; }
+                    fields.push({ id: newFieldId(), key: q.key, kind: q.kind });
+                });
+                state.freeFields = fields;
+                lines.push(`項目 ${fields.length} 件を読み込みました`);
+            } else {
+                lines.push(`形式を「${FORMAT_NAME[cfg.format]}」に切り替えました。frontmatter の項目はこの形式の固定項目です`);
+            }
+            rebuildSteps();
+            if (state.current > STEPS.length) state.current = STEPS.length;
+            save(); renderAll(false);
+            renderImportReport(lines);
+            toast('質問設定を読み込みました');
+        }
+        $('#btnCfgIn').addEventListener('click', () => $('#cfgIn').click());
+        $('#cfgIn').addEventListener('change', e => {
+            const f = e.target.files[0];
+            e.target.value = '';
+            if (!f) return;
+            const r = new FileReader();
+            r.onload = () => importConfig(String(r.result));
+            r.onerror = () => toast('ファイルを読み込めませんでした');
+            r.readAsText(f);
         });
 
         document.addEventListener('keydown', e => {
