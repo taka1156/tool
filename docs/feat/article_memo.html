@@ -1047,6 +1047,7 @@
                     <label class="check" title="未記入・記入済みに関わらず、テンプレートのガイドコメント（&lt;!-- --&gt;）を出力に残します"><input type="checkbox" id="keepComments"> ガイドコメントを残す</label>
                     <button id="btnCopy" type="button">コピー</button>
                     <button id="btnConfig" type="button" title="現在の形式の質問定義を JSON で保存します">質問設定を JSON で書き出し</button>
+                    <button id="btnResetCfg" type="button" title="本文と frontmatter の項目を標準の質問設定に戻します（形式は変えません）">設定を標準に戻す</button>
                     <button id="btnAiPrompt" type="button" title="この JSON Schema を使って質問設定を作らせる AI 向けプロンプトをコピーします">AI 用プロンプトをコピー</button>
                     <button id="btnDownload" type="button" class="primary">.md をダウンロード</button>
                 </div>
@@ -2603,6 +2604,18 @@
             el.innerHTML = '<b style="color:var(--text-primary)">取り込みの結果</b><ul style="margin:4px 0 0;padding-left:18px">'
                 + lines.map(l => `<li>${esc(l)}</li>`).join('') + '</ul>';
         }
+        // 本文と frontmatter の項目を標準の質問設定に戻す（形式・回答は変えない）
+        function resetConfig() {
+            state.bodyQuestions = null;
+            initFreeFields();
+            applyBody();
+            rebuildSteps();
+            if (state.current > STEPS.length) state.current = STEPS.length;
+            save(); renderAll(false);
+            renderImportReport(['標準の質問設定に戻しました。形式と、今の回答はそのままです']);
+            toast('標準の質問設定に戻しました');
+        }
+        $('#btnResetCfg').addEventListener('click', resetConfig);
         // 質問設定（JSON）を読み込む。形式・frontmatter の項目（キー・型）・本文の質問と見出しを置き換える
         // AI の出力のように ``` で囲まれていたら中身だけを取り出す
         function unfence(t) {
