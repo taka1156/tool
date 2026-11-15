@@ -2393,6 +2393,8 @@
                 '- kind は $defs.kind の中から選ぶ。choice_single / choice_multi には options（1 件以上）が必須、bool には options を付けない。',
                 '- 特定の回答に応じて出す質問は when で書く（例: {"format": "zenn", "type": ["idea", "tech"]}）。',
                 '- 本文の見出しは heading と level（2 または 3）で指定する。',
+                '- 本文の質問は group を "本文" にし、heading と level（2 か 3）を必ず付ける。heading のない質問は本文に入らない。',
+                '- 完全自由の frontmatter 項目は frontmatter: true と key と kind を付ける。',
                 '',
                 '## テンプレート Markdown のルール',
                 '- 先頭に frontmatter（--- で囲む）を書き、形式に合わせたキーを書く。',
