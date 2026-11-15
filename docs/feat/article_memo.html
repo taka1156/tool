@@ -2369,6 +2369,7 @@
                 if (s.when) o.when = s.when;
                 if (s.fm) o.frontmatter = true;
                 if (s.fieldKey) o.key = s.fieldKey;
+                else if (s.fm) o.key = { title: 'title', emoji: 'emoji', type: 'type', topics: 'topics', tags: 'tags', private: 'private' }[s.id];
                 if (s.options) o.options = s.options.map(({ value, title, desc }) => (desc ? { value, title, desc } : { value, title }));
                 if (s.deep) o.deep = s.deep;
                 return o;
