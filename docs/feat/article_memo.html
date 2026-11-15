@@ -1069,7 +1069,33 @@
                     <button id="btnCfgIn" type="button">質問設定（JSON）を読み込む</button>
                     <input type="file" id="cfgIn" accept=".json,application/json" hidden>
                 </div>
-                <p class="hint" style="margin:6px 0 0">質問設定の JSON は「形式」と「frontmatter の項目（キー・型）」を読み込みます。質問の文言や順番は変わりません。</p>
+                <details style="margin-top:8px">
+                    <summary>質問設定（JSON）の書き方</summary>
+                    <div class="hint" style="margin-top:6px;line-height:1.7">
+                        <p style="margin:0 0 6px">読み込むと、<b>形式</b>と<b>完全自由の frontmatter 項目（キー・型）</b>が切り替わります。質問の文言・順番・hint は変わりません。本文の回答は消えません。</p>
+                        <ul style="margin:0 0 6px;padding-left:18px">
+                            <li><code>version</code> は <code>1</code></li>
+                            <li><code>format</code> は <code>zenn</code> / <code>qiita</code> / <code>free</code> のどれか</li>
+                            <li><code>free</code> の項目は、<code>frontmatter: true</code> と <code>key</code> と <code>kind</code> を持つ質問。どちらかがなければ無視されます</li>
+                            <li><code>kind</code> は <code>text</code> / <code>text_tags</code> / <code>url</code> / <code>number</code> / <code>date</code> / <code>datetime</code> / <code>bool</code> / <code>emoji_single</code> / <code>emoji_multi</code></li>
+                            <li><code>zenn</code> / <code>qiita</code> の場合、項目は形式の固定項目なので JSON の項目は読みません</li>
+                        </ul>
+                        <p style="margin:0 0 4px">例（完全自由・項目 2 つ）</p>
+                        <pre style="margin:0;white-space:pre-wrap;font-size:12px;background:var(--surface-1);padding:8px;border-radius:var(--radius)">{
+  "version": 1,
+  "format": "free",
+  "questions": [
+    { "frontmatter": true, "key": "title", "kind": "text",
+      "id": "title", "group": "仕上げ", "label": "title",
+      "question": "タイトル" },
+    { "frontmatter": true, "key": "created_at", "kind": "datetime",
+      "id": "created_at", "group": "仕上げ", "label": "created_at",
+      "question": "作成日時" }
+  ]
+}</pre>
+                        <p style="margin:6px 0 0">「質問設定を JSON で書き出し」で保存したファイルは、そのまま読み込めます。読み込み後は「取り込みの結果」に件数や除外された項目が出ます。</p>
+                    </div>
+                </details>
             </section>
         </div>
     </main>
