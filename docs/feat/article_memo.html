@@ -1043,40 +1043,65 @@
                     </div>
                     <pre id="rawOut" hidden></pre>
                 </div>
-                <div class="export-row" id="exportRow">
-                    <label class="check" title="未記入・記入済みに関わらず、テンプレートのガイドコメント（&lt;!-- --&gt;）を出力に残します"><input type="checkbox" id="keepComments"> ガイドコメントを残す</label>
-                    <button id="btnCopy" type="button">コピー</button>
-                    <button id="btnConfig" type="button" title="現在の形式の質問定義を JSON で保存します">質問設定を JSON で書き出し</button>
-                    <button id="btnResetCfg" type="button" title="本文と frontmatter の項目を標準の質問設定に戻します（形式は変えません）">設定を標準に戻す</button>
-                    <button id="btnAiPrompt" type="button" title="この JSON Schema を使って質問設定を作らせる AI 向けプロンプトをコピーします">AI 用プロンプトをコピー</button>
-                    <button id="btnDownload" type="button" class="primary">.md をダウンロード</button>
-                </div>
             </section>
 
-            <section class="card" id="importCard">
-                <h2>④ インポート</h2>
-                <div class="drop" id="drop" tabindex="0" role="button">
-                    書きかけの記事メモ（.md）または質問設定（.json）をドロップ、またはクリックして選択
+            <section class="card" id="ioCard">
+                <h2>④ 書き出し・取り込み</h2>
+                <p class="hint" id="cfgStatus" style="margin:0 0 10px"></p>
+                <div class="tabs" role="tablist" id="ioTabs" style="margin-bottom:10px">
+                    <button type="button" role="tab" id="tabMdOut" aria-selected="true" aria-controls="panelMdOut">Markdown 書き出し</button>
+                    <button type="button" role="tab" id="tabMdIn" aria-selected="false" aria-controls="panelMdIn">Markdown 取り込み</button>
+                    <button type="button" role="tab" id="tabJsonOut" aria-selected="false" aria-controls="panelJsonOut">JSON 書き出し</button>
+                    <button type="button" role="tab" id="tabJsonIn" aria-selected="false" aria-controls="panelJsonIn">JSON 取り込み</button>
                 </div>
-                <input type="file" id="fileIn" accept=".md,.markdown,.txt,.json,text/markdown,text/plain,application/json" hidden>
-                <details>
-                    <summary>Markdown を貼り付けて読み込む</summary>
-                    <textarea id="pasteIn" placeholder="---&#10;title: &quot;&quot;&#10;...&#10;---&#10;&#10;## この記事で伝えたいこと"></textarea>
-                    <div style="margin-top:6px"><button id="btnPaste" type="button">読み込む</button></div>
-                    <p class="hint" style="margin:6px 0 0">AI の出力をそのまま貼ってかまいません（コードフェンスは外して読みます）。</p>
-                </details>
-                <p class="hint" style="margin:8px 0 0">読み込むと現在の内容は置き換わり、未記入の項目から順番に質問します。frontmatter は今の質問設定（形式・項目）に合わせて読み、合わない項目は警告して値を残します。テンプレートにない見出しはそのまま保持して書き出します。</p>
-                <div id="importReport" hidden style="margin-top:8px;font-size:13px;color:var(--text-secondary)"></div>
-                <details style="margin-top:8px">
-                    <summary>質問設定（JSON）を貼り付けて読み込む</summary>
-                    <textarea id="cfgPaste" rows="6" placeholder="{&#10;  &quot;version&quot;: 1,&#10;  &quot;format&quot;: &quot;free&quot;,&#10;  ...&#10;}"></textarea>
-                    <div style="margin-top:6px"><button id="btnCfgPaste" type="button">読み込む</button></div>
-                    <p class="hint" style="margin:6px 0 0">AI の出力をそのまま貼ってかまいません（```json のコードフェンスは外して読みます）。</p>
-                </details>
+
+                <div id="panelMdOut" role="tabpanel">
+                    <div class="export-row">
+                        <label class="check" title="未記入・記入済みに関わらず、テンプレートのガイドコメント（&lt;!-- --&gt;）を出力に残します"><input type="checkbox" id="keepComments"> ガイドコメントを残す</label>
+                        <button id="btnCopy" type="button">コピー</button>
+                        <button id="btnDownload" type="button" class="primary">.md をダウンロード</button>
+                    </div>
+                    <p class="hint" style="margin:8px 0 0">今の回答と質問設定から、記事メモの Markdown を組み立てます。</p>
+                </div>
+
+                <div id="panelMdIn" role="tabpanel" hidden>
+                    <div class="drop" id="drop" tabindex="0" role="button">書きかけの記事メモ（.md）をドロップ、またはクリックして選択</div>
+                    <input type="file" id="fileIn" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden>
+                    <details style="margin-top:8px">
+                        <summary>Markdown を貼り付けて読み込む</summary>
+                        <textarea id="pasteIn" placeholder="---&#10;title: &quot;&quot;&#10;...&#10;---&#10;&#10;## この記事で伝えたいこと"></textarea>
+                        <div style="margin-top:6px"><button id="btnPaste" type="button">読み込む</button></div>
+                        <p class="hint" style="margin:6px 0 0">AI の出力をそのまま貼ってかまいません（コードフェンスは外して読みます）。</p>
+                    </details>
+                    <p class="hint" style="margin:8px 0 0">読み込むと現在の内容は置き換わり、未記入の項目から順番に質問します。frontmatter は今の質問設定に合わせて読み、合わない項目は警告して値を残します。</p>
+                </div>
+
+                <div id="panelJsonOut" role="tabpanel" hidden>
+                    <div class="export-row">
+                        <button id="btnConfig" type="button" title="現在の形式の質問定義を JSON で保存します">質問設定を JSON で書き出し</button>
+                        <button id="btnAiPrompt" type="button" title="この JSON Schema を使って質問設定を作らせる AI 向けプロンプトをコピーします">AI 用プロンプトをコピー</button>
+                    </div>
+                    <p class="hint" style="margin:8px 0 0">AI 用プロンプトは、質問設定と対になるテンプレート Markdown も作るよう指示します。</p>
+                    <div style="margin-top:10px">
+                        <button id="btnResetCfg" type="button" title="本文と frontmatter の項目を標準の質問設定に戻します。回答もすべて消えます（形式は残ります）">設定を標準に戻す</button>
+                        <p class="hint" style="margin:6px 0 0">本文と frontmatter の項目を標準に戻します。今の回答は消えます（形式は残ります）。</p>
+                    </div>
+                </div>
+
+                <div id="panelJsonIn" role="tabpanel" hidden>
+                    <div class="drop" id="dropCfg" tabindex="0" role="button">質問設定（.json）をドロップ、またはクリックして選択</div>
+                    <input type="file" id="cfgFileIn" accept=".json,application/json" hidden>
+                    <details style="margin-top:8px">
+                        <summary>質問設定（JSON）を貼り付けて読み込む</summary>
+                        <textarea id="cfgPaste" rows="6" placeholder="{&#10;  &quot;version&quot;: 1,&#10;  &quot;format&quot;: &quot;free&quot;,&#10;  ...&#10;}"></textarea>
+                        <div style="margin-top:6px"><button id="btnCfgPaste" type="button">読み込む</button></div>
+                        <p class="hint" style="margin:6px 0 0">AI の出力をそのまま貼ってかまいません（```json のコードフェンスは外して読みます）。</p>
+                    </details>
+
                 <details style="margin-top:8px">
                     <summary>質問設定（JSON）の書き方</summary>
                     <div class="hint" style="margin-top:6px;line-height:1.7">
-                        <p style="margin:0 0 6px">読み込むと、<b>形式</b>、<b>完全自由の frontmatter 項目（キー・型）</b>、<b>本文の質問と見出し</b>が切り替わります。本文の項目がない設定は本文を変えません。本文から外れた項目の回答は残りますが、書き出しには含まれません。</p>
+                        <p style="margin:0 0 6px">読み込むと、<b>形式</b>、<b>完全自由の frontmatter 項目（キー・型）</b>、<b>本文の質問と見出し</b>が切り替わります。本文の項目がない設定は本文を変えません。読み込むと今の回答は消えます（形式は設定の形式に変わります）。</p>
                         <ul style="margin:0 0 6px;padding-left:18px">
                             <li><code>version</code> は <code>1</code></li>
                             <li><code>format</code> は <code>zenn</code> / <code>qiita</code> / <code>free</code> のどれか</li>
@@ -1101,6 +1126,9 @@
                         <p style="margin:6px 0 0">「質問設定を JSON で書き出し」で保存したファイルは、そのまま読み込めます。読み込み後は「取り込みの結果」に件数や除外された項目が出ます。</p>
                     </div>
                 </details>
+                </div>
+
+                <div id="importReport" hidden style="margin-top:12px;font-size:13px;color:var(--text-secondary)"></div>
             </section>
         </div>
     </main>
@@ -2002,7 +2030,19 @@
         /* ---------- rendering: wizard ---------- */
         const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+        // 回答が 1 つでも入っているか（形式以外）
+        function hasAnswers() { return Object.keys(state.answers).some(k => k !== 'format' && isFilled(k)); }
+        // 回答をすべて消す（形式は残す）
+        function clearAnswers() {
+            const fmt = state.answers.format;
+            state.answers = Object.assign(defaultState().answers, { format: fmt });
+            state.skipped = {};
+        }
         function setAnswer(id, v) {
+            if (id === 'format' && v !== state.answers.format && hasAnswers()) {
+                if (!confirm('形式を変えると、今の回答は消えます。よろしいですか？')) { renderWizard(false); return; }
+                clearAnswers();
+            }
             state.answers[id] = v;
             if (isFilled(id)) delete state.skipped[id];
             if (id === 'format') {
@@ -2289,7 +2329,15 @@
             if (fmt === 'qiita') return val('tags') || [];
             return [];
         }
+        // 今の設定を 1 行で示す（形式・本文・frontmatter）
+        function renderCfgStatus() {
+            const fmt = curFormat();
+            const body = `本文 ${BODY_ORDER.length} 項目（${state.bodyQuestions ? 'JSON 読み込み' : '標準'}）`;
+            const fm = fmt === 'free' ? ` ・ frontmatter ${freeFields().length} 項目` : '';
+            $('#cfgStatus').textContent = `現在の設定: ${FORMAT_NAME[fmt]} ・ ${body}${fm}`;
+        }
         function renderPreview() {
+            renderCfgStatus();
             const a = state.answers, fmt = curFormat();
             const typeTxt = a.type === 'tech' ? '💻 tech' : a.type === 'idea' ? '💡 idea' : 'type 未設定';
             const meta = fmt === 'zenn' ? `${typeTxt} · ${state.published ? '公開' : '下書き (published: false)'}`
@@ -2497,14 +2545,24 @@
             toast('新しい記事メモを始めます');
         });
 
-        // ドロップ・選択の両方を、拡張子で振り分ける（.json は質問設定、それ以外は記事メモ）
-        function importFile(f) {
+        function readFile(f, cb) {
             const r = new FileReader();
-            r.onload = () => (/\.json$/i.test(f.name) ? importConfig(String(r.result)) : importText(String(r.result)));
+            r.onload = () => cb(String(r.result));
             r.onerror = () => toast('ファイルを読み込めませんでした');
             r.readAsText(f);
         }
-        setupDrop($('#drop'), $('#fileIn'), importFile);
+        setupDrop($('#drop'), $('#fileIn'), f => readFile(f, importText));
+        setupDrop($('#dropCfg'), $('#cfgFileIn'), f => readFile(f, importConfig));
+        // 書き出し・取り込みのタブ
+        const IO_TABS = ['MdOut', 'MdIn', 'JsonOut', 'JsonIn'];
+        function showIoTab(name) {
+            IO_TABS.forEach(n => {
+                const on = n === name;
+                $('#tab' + n).setAttribute('aria-selected', String(on));
+                $('#panel' + n).hidden = !on;
+            });
+        }
+        IO_TABS.forEach(n => $('#tab' + n).addEventListener('click', () => showIoTab(n)));
         $('#btnPaste').addEventListener('click', () => {
             const t = $('#pasteIn').value;
             if (!t.trim()) { toast('貼り付け欄が空です'); return; }
@@ -2604,15 +2662,17 @@
             el.innerHTML = '<b style="color:var(--text-primary)">取り込みの結果</b><ul style="margin:4px 0 0;padding-left:18px">'
                 + lines.map(l => `<li>${esc(l)}</li>`).join('') + '</ul>';
         }
-        // 本文と frontmatter の項目を標準の質問設定に戻す（形式・回答は変えない）
+        // 本文と frontmatter の項目を標準の質問設定に戻す。回答もすべて消す（形式は残す）
         function resetConfig() {
+            if (hasAnswers() && !confirm('標準に戻すと、今の回答もすべて消えます。よろしいですか？')) return;
+            clearAnswers();
             state.bodyQuestions = null;
             initFreeFields();
             applyBody();
             rebuildSteps();
             if (state.current > STEPS.length) state.current = STEPS.length;
             save(); renderAll(false);
-            renderImportReport(['標準の質問設定に戻しました。形式と、今の回答はそのままです']);
+            renderImportReport(['標準の質問設定に戻しました。今の回答は消しました（形式は残しています）']);
             toast('標準の質問設定に戻しました');
         }
         $('#btnResetCfg').addEventListener('click', resetConfig);
@@ -2630,6 +2690,8 @@
                 toast('質問設定の形式が合いません（version / format / questions を確認してください）');
                 return;
             }
+            if (hasAnswers() && !confirm('質問設定を読み込むと、今の回答は消えます。よろしいですか？')) return;
+            clearAnswers();
             const lines = [];
             state.answers.format = cfg.format;
             if (cfg.format === 'free') {
@@ -2644,7 +2706,6 @@
                 lines.push(`形式を「${FORMAT_NAME[cfg.format]}」に切り替えました。frontmatter の項目はこの形式の固定項目です`);
             }
             // 本文（group: 本文）。見出しと型が揃うものだけを本文にする
-            const oldIds = [...BODY_ORDER];
             const accepted = [];
             cfg.questions.filter(q => q && q.group === '本文').forEach(q => {
                 if (!q.heading) { lines.push(`${q.id || '（id なし）'}: heading がないため本文に含めません`); return; }
@@ -2655,9 +2716,6 @@
             if (accepted.length) {
                 state.bodyQuestions = accepted;
                 lines.push(`本文の項目 ${accepted.length} 件を読み込みました`);
-                const newIds = accepted.map(q => q.id);
-                const dropped = oldIds.filter(id => !newIds.includes(id) && isFilled(id));
-                if (dropped.length) lines.push(`本文から外れた項目 ${dropped.length} 件（${dropped.join(', ')}）は、回答を残しますが書き出しには含みません`);
             } else {
                 lines.push('本文の項目が 1 つもないため、本文は今のままです');
             }
@@ -2705,10 +2763,9 @@
                 { element: '#progress', popover: { title: '進捗', description: 'いま何問目か、記入済み・スキップ・未記入の数が出ます。バーの各マスをクリックするとその質問へ移動します。', side: 'bottom', align: 'start' } },
                 { element: '#wizard', popover: { title: '① 質問に答える', description: '「＋」の深掘り質問をクリックすると回答欄に問いが入ります。答えにくい質問は「スキップ」で後回しにできます。Ctrl / ⌘ + Enter で次へ。', side: 'right', align: 'start' } },
                 { element: '#stepsCard', popover: { title: '② 項目一覧', description: '全項目の状態の一覧です。「未記入だけ巡回」をオンにすると、記入済みの質問を飛ばして進みます。', side: 'right', align: 'start' } },
-                { element: '#previewCard', popover: { title: '③ プレビュー / エクスポート', description: '記事の形でリアルタイムに確認できます。見出しをクリックするとその質問へ。Markdown タブで出力を確認し、コピーや .md ダウンロードができます。', side: 'left', align: 'start' } },
-                { element: '#importCard', popover: { title: '④ インポート', description: '書き出した .md や書きかけの記事を読み込むと、埋まっていない項目から順番に質問します。', side: 'left', align: 'start' } },
-                { element: '#btnCfgIn', popover: { title: '⑤ 質問設定（JSON）の読み込み', description: '形式、完全自由の frontmatter 項目（キー・型）、本文の質問と見出しを JSON から読み込みます。書き方は④の「質問設定（JSON）の書き方」を開くと例が出ます。', side: 'top', align: 'start' } },
-                { element: '#exportRow', popover: { title: '書き出し', description: '「質問設定を JSON で書き出し」は今の形式の質問定義を保存します。「AI 用プロンプトをコピー」は、この質問設定の JSON Schema を埋め込んだ AI 向けのプロンプトをコピーします。', side: 'left', align: 'start' } },
+                { element: '#previewCard', popover: { title: '③ プレビュー / エクスポート', description: '記事の形でリアルタイムに確認できます。見出しをクリックするとその質問へ。Markdown タブで出力を確認し、コピーや .md ダウンロードは「④ 書き出し・取り込み」の Markdown 書き出しタブです。', side: 'left', align: 'start' } },
+                { element: '#ioTabs', popover: { title: '④ 書き出し・取り込み', description: 'Markdown と JSON の書き出し・取り込みを 4 つのタブで切り替えます。書きかけの .md は「Markdown 取り込み」、質問設定の JSON は「JSON 取り込み」から読み込めます。', side: 'left', align: 'start' } },
+                { element: '#cfgStatus', popover: { title: '今の設定', description: '形式・本文の項目数・frontmatter の項目数を 1 行で示します。設定を変えると回答は消えるので、ここで確認できます。', side: 'left', align: 'start' } },
                 { element: '#btnTheme', popover: { title: 'ライト / ダーク', description: '「自動（OS設定）」「ライト」「ダーク」を順に切り替えます。', side: 'bottom', align: 'end' } },
                 { element: '#btnHelp', popover: { title: 'ツアーをもう一度', description: 'このボタンでいつでも再表示できます。URLに ?onBoarding=1 を付けて開いても始まります。', side: 'bottom', align: 'end' } }
             ]
