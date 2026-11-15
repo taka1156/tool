@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tool.taka1156.site/feat/article_memo.questions.schema.json",
+  "title": "Article Memo Question Config",
+  "description": "記事メモウィザードの質問設定。質問の並び・入力種別・表示条件を定義する。回答そのものは含まない。",
+  "type": "object",
+  "required": ["version", "format", "questions"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "format": {
+      "description": "記事の frontmatter 形式。zenn / qiita / free（完全自由）。",
+      "enum": ["zenn", "qiita", "free"]
+    },
+    "questions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/question" }
+    }
+  },
+  "$defs": {
+    "question": {
+      "type": "object",
+      "description": "1 つの質問。回答順は配列の順番どおり。",
+      "required": ["id", "group", "label", "question", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "一意な識別子。英字かアンダースコアで始まる英数字。回答と frontmatter の対応にも使う。",
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "group": {
+          "description": "画面上の分類。",
+          "enum": ["方向性", "本文", "仕上げ"]
+        },
+        "label": {
+          "description": "項目一覧に出す短い名前。",
+          "type": "string",
+          "minLength": 1
+        },
+        "question": {
+          "description": "質問文（吹き出しの本文）。",
+          "type": "string",
+          "minLength": 1
+        },
+        "hint": {
+          "description": "質問の下に出す補足・記入のコツ。",
+          "type": "string"
+        },
+        "kind": { "$ref": "#/$defs/kind" },
+        "optional": {
+          "description": "true の場合、「任意」と表示しスキップしやすくする。",
+          "type": "boolean"
+        },
+        "when": { "$ref": "#/$defs/when" },
+        "heading": {
+          "description": "本文の見出し文字列（本文の質問のみ）。書き出し時の Markdown 見出しになる。",
+          "type": "string",
+          "minLength": 1
+        },
+        "level": {
+          "description": "見出しレベル（2 は ##、3 は ###）。heading がある場合に使う。",
+          "enum": [2, 3]
+        },
+        "comment": {
+          "description": "書き出し時に残す HTML コメント（ガイド文）。",
+          "type": "string"
+        },
+        "placeholder": {
+          "description": "入力欄のプレースホルダー。",
+          "type": "string"
+        },
+        "rows": {
+          "description": "テキストエリアの初期の行数（textarea_markdown / list_lines）。",
+          "type": "integer",
+          "minimum": 1
+        },
+        "max": {
+          "description": "件数の上限（text_tags）または文字数の上限（text）。null は無制限。",
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "separators": {
+          "description": "区切り文字の一覧（text_tags）。\" \" は空白を表す。既定は [\",\", \"、\", \"，\", \" \"]。",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "lowercase": {
+          "description": "true の場合、入力を小文字に揃える（text_tags）。Zenn の topics 向け。",
+          "type": "boolean"
+        },
+        "options": {
+          "description": "選択肢（choice_single / choice_multi では必須）。",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["value", "title"],
+            "additionalProperties": false,
+            "properties": {
+              "value": { "type": "string", "minLength": 1 },
+              "title": { "type": "string", "minLength": 1 },
+              "desc": { "type": "string" }
+            }
+          }
+        },
+        "deep": {
+          "description": "「深掘り」チップ。文字列は回答欄に質問を差し込む。quoteWant は『この記事で伝えたいこと』を引用する特殊動作。",
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              {
+                "type": "object",
+                "required": ["label", "action"],
+                "additionalProperties": false,
+                "properties": {
+                  "label": { "type": "string" },
+                  "action": { "enum": ["quoteWant"] }
+                }
+              }
+            ]
+          }
+        },
+        "key": {
+          "description": "frontmatter に書くキー（free 形式のフィールドで使用）。",
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+        },
+        "frontmatter": {
+          "description": "true の場合、frontmatter 項目（Zenn/Qiita のメタ情報）として扱う。画面の見出し表示に使う。",
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "enum": ["choice_single", "choice_multi"] } }, "required": ["kind"] },
+          "then": { "required": ["options"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "bool" } }, "required": ["kind"] },
+          "then": { "not": { "required": ["options"] } }
+        }
+      ]
+    },
+    "kind": {
+      "description": "入力種別。画面の入力欄とエクスポート時の値の型を決める。",
+      "oneOf": [
+        {
+          "const": "text",
+          "title": "テキストボックス（通常）",
+          "description": "1 行の自由入力。タイトルなど。max で文字数上限を指定できる。"
+        },
+        {
+          "const": "text_tags",
+          "title": "テキストボックス（区切りあり・タグなど）",
+          "description": "区切り文字で複数の値に分ける。値は文字列の配列として保存され、書き出し時はリストになる。max で件数上限、lowercase で小文字化。"
+        },
+        {
+          "const": "textarea_markdown",
+          "title": "テキストエリア（通常・Markdown）",
+          "description": "複数行の自由入力。Markdown として書き出す。"
+        },
+        {
+          "const": "list_lines",
+          "title": "テキストエリア（1 行 = 1 項目の箇条書き）",
+          "description": "1 行を 1 項目として箇条書き（- ）に変換する。"
+        },
+        {
+          "const": "date",
+          "title": "日付",
+          "description": "YYYY-MM-DD の日付。"
+        },
+        {
+          "const": "datetime",
+          "title": "日時",
+          "description": "日付と時刻。書き出し時に +09:00 などのタイムゾーンを付ける。「今」ボタンで現在時刻を入れられる。"
+        },
+        {
+          "const": "number",
+          "title": "数値",
+          "description": "数値のみ。書き出し時は数値として出力する。"
+        },
+        {
+          "const": "url",
+          "title": "URL",
+          "description": "URL 文字列。画像はファイルではなく URL を貼る前提。"
+        },
+        {
+          "const": "bool",
+          "title": "真偽（true / false）",
+          "description": "true か false の 2 択。options は持たない（固定）。"
+        },
+        {
+          "const": "choice_single",
+          "title": "選択（単一）",
+          "description": "options から 1 つ選ぶ。選ぶと次の質問へ進む。"
+        },
+        {
+          "const": "choice_multi",
+          "title": "選択（複数）",
+          "description": "options から複数選ぶ。値は文字列の配列。"
+        },
+        {
+          "const": "emoji_single",
+          "title": "絵文字（単一）",
+          "description": "絵文字を 1 つ選ぶ、または直接入力する。"
+        },
+        {
+          "const": "emoji_multi",
+          "title": "絵文字（複数）",
+          "description": "絵文字を複数選ぶ。値は絵文字の配列。"
+        }
+      ]
+    },
+    "when": {
+      "description": "表示条件。すべての条件を満たすときだけ質問を表示する。キーは 'format' か回答済みの質問 id。値は単一の値、または候補の配列（いずれかに一致すればよい）。",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "string" },
+          { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+        ]
+      },
+      "examples": [{ "format": "zenn" }, { "format": "zenn", "type": ["idea", "tech"] }]
+    }
+  }
+}

@@ -489,6 +489,14 @@
             margin-top: 4px;
         }
 
+        .text-row { display: flex; gap: 8px; align-items: center; }
+        .text-row input { flex: 1; min-width: 0; }
+        .field-list { display: grid; gap: 6px; margin-bottom: 12px; }
+        .field-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .field-row .fk { font-family: ui-monospace, Menlo, monospace; }
+        .field-row .fmove { margin-left: auto; display: flex; gap: 4px; }
+        .field-add { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .field-add input { flex: 1 1 160px; min-width: 0; }
         .choice-list {
             display: grid;
             gap: 8px;
@@ -1038,6 +1046,8 @@
                 <div class="export-row" id="exportRow">
                     <label class="check" title="未記入・記入済みに関わらず、テンプレートのガイドコメント（&lt;!-- --&gt;）を出力に残します"><input type="checkbox" id="keepComments"> ガイドコメントを残す</label>
                     <button id="btnCopy" type="button">コピー</button>
+                    <button id="btnConfig" type="button" title="現在の形式の質問定義を JSON で保存します">質問設定を JSON で書き出し</button>
+                    <button id="btnAiPrompt" type="button" title="この JSON Schema を使って質問設定を作らせる AI 向けプロンプトをコピーします">AI 用プロンプトをコピー</button>
                     <button id="btnDownload" type="button" class="primary">.md をダウンロード</button>
                 </div>
             </section>
@@ -1177,7 +1187,7 @@
         const TYPE_COMMENT = 'tech or idea';
         const BODY_ORDER = ['want', 'reader', 'background', 'cause', 'solution', 'env', 'impl', 'result', 'caveat', 'summary', 'refs'];
 
-        const STEPS = [
+        const LEGACY_STEPS = [
             {
                 id: 'type', group: '方向性', label: '記事タイプ', kind: 'choice',
                 q: 'どんな種類の記事にしますか？',
@@ -1286,17 +1296,389 @@
                 deep: ['〇〇した話', '〇〇で△△を解決した', '〇〇を△△してみた', '〇〇入門: △△編', '〇〇でハマったポイントN選']
             }
         ];
-        const STEP_BY_ID = Object.fromEntries(STEPS.map(s => [s.id, s]));
+        const pick = id => ({ ...LEGACY_STEPS.find(s => s.id === id) });
+        const BODY_STEPS = LEGACY_STEPS.filter(s => !['type', 'topics', 'emoji', 'title'].includes(s.id));
+        const BODY_BY_ID = Object.fromEntries(BODY_STEPS.map(s => [s.id, s]));
+        const FORMATS = ['zenn', 'qiita', 'free'];
+        const FORMAT_STEP = {
+            id: 'format', group: '方向性', label: 'フォーマット', kind: 'choice',
+            q: 'どの形式の記事メモにしますか？',
+            hint: 'Zenn・Qiita の frontmatter に合わせるか、項目を自由に決めるかを選びます。',
+            options: [
+                { value: 'zenn', title: 'Zenn 風', desc: 'type / topics / emoji / title / published' },
+                { value: 'qiita', title: 'Qiita 風', desc: 'title / tags（最大 5 つ）/ private' },
+                { value: 'free', title: '完全自由', desc: 'キーと型を自分で決めます（時刻・テキスト・絵文字・URL など）' }
+            ]
+        };
+        const FIELDS_STEP = {
+            id: 'fields', group: '方向性', label: 'フィールド', kind: 'fields', noAnswer: true,
+            q: 'frontmatter に書く項目を決めましょう',
+            hint: 'キーと型を追加・削除・並べ替えできます。初期値は brite サンプルと同じ構成です。'
+        };
+        const KIND_LABEL = {
+            text: 'テキスト', url: 'URL（画像は URL を書く）', number: '数値', date: '日付',
+            datetime: '日時（+09:00 などの TZ 付きで書き出し）', bool: '真偽（true / false）',
+            text_tags: 'テキストボックス（区切りあり・タグなど）', emoji_single: '絵文字（単一）', emoji_multi: '絵文字（複数）'
+        };
+        const FIELD_HINT = {
+            text: '自由な文字列です。',
+            url: '画像は URL を書きます（ファイルは添付されません）。',
+            number: '数値のみ入力します。',
+            date: '日付（YYYY-MM-DD）です。',
+            datetime: '日時です。書き出し時に +09:00 などのタイムゾーンを付けます。「今」で現在時刻を入れられます。',
+            bool: 'true か false を選びます。',
+            text_tags: 'カンマ区切りで複数入力します（書き出し時は YAML のリストになります）。',
+            emoji_single: '1 文字だけ入れます。',
+            emoji_multi: '使う絵文字を複数選びます（書き出し時は YAML のリストになります）。'
+        };
+        const FIELD_STEP_DEFS = {
+            text: { kind: 'text' },
+            url: { kind: 'text', inputType: 'url' },
+            number: { kind: 'text', inputType: 'number' },
+            date: { kind: 'text', inputType: 'date' },
+            datetime: { kind: 'text', inputType: 'datetime-local' },
+            bool: { kind: 'choice', boolean: true, options: [{ value: 'true', title: 'true', desc: '真' }, { value: 'false', title: 'false', desc: '偽' }] },
+            text_tags: { kind: 'topics', lower: false, separators: [',', '、', '，'] },
+            emoji_single: { kind: 'emoji' },
+            emoji_multi: { kind: 'emoji', multi: true }
+        };
+        const TEXT_NOTE = {
+            text: '', url: '画像は URL をそのまま書きます', number: '', date: 'YYYY-MM-DD',
+            'datetime-local': '書き出し時に +09:00 などのタイムゾーンを付けます'
+        };
+        const ZENN_STEPS = [
+            Object.assign(pick('type'), { fm: true, hint: 'Zenn の type。tech は手順・ツール・知見などの技術記事、idea は技術以外（キャリア・チーム・考え方など）の記事です。' }),
+            Object.assign(pick('topics'), { fm: true, max: 5, lower: true, hint: 'Zenn のトピック（タグ）。最大 5 つ、英小文字が基本です（例: typescript, react）。カンマか空白で区切ります。' }),
+            Object.assign(pick('emoji'), { fm: true, when: { format: 'zenn', type: ['idea', 'tech'] }, hint: '記事一覧に表示される絵文字です。1 文字だけ入れます。下のボタンから選ぶか、直接入力もできます。' }),
+            Object.assign(pick('title'), { fm: true, max: 70, hint: 'タイトルは書き終わった後に決めるのがおすすめ。Zenn では 70 文字以内です。下の型をクリックすると入力欄に入ります。' })
+        ];
+        const QIITA_STEPS = [
+            Object.assign(pick('title'), { fm: true, max: null, deep: [], hint: 'Qiita の記事一覧や検索結果に出る見出しです。内容が一言で分かる言葉にすると読まれやすくなります。' }),
+            {
+                id: 'tags', group: '仕上げ', label: 'タグ', kind: 'topics', fm: true, max: 5, lower: false,
+                q: 'タグを決めましょう', hint: 'Qiita のタグは最大 5 つです。カンマか空白で区切ります。既存のタグ名に合わせると探されやすくなります（例: Go, Docker）。'
+            },
+            {
+                id: 'private', group: '仕上げ', label: '公開範囲', kind: 'choice', fm: true,
+                q: '公開範囲を選んでください', hint: '公開（private: false）は誰でも読めます。限定共有（private: true）は URL を知っている人だけが読めます。',
+                options: [{ value: 'false', title: '公開', desc: 'private: false' }, { value: 'true', title: '限定共有', desc: 'private: true' }]
+            }
+        ];
+        const QUESTION_SCHEMA = {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tool.taka1156.site/feat/article_memo.questions.schema.json",
+  "title": "Article Memo Question Config",
+  "description": "記事メモウィザードの質問設定。質問の並び・入力種別・表示条件を定義する。回答そのものは含まない。",
+  "type": "object",
+  "required": ["version", "format", "questions"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "format": {
+      "description": "記事の frontmatter 形式。zenn / qiita / free（完全自由）。",
+      "enum": ["zenn", "qiita", "free"]
+    },
+    "questions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/question" }
+    }
+  },
+  "$defs": {
+    "question": {
+      "type": "object",
+      "description": "1 つの質問。回答順は配列の順番どおり。",
+      "required": ["id", "group", "label", "question", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "一意な識別子。英字かアンダースコアで始まる英数字。回答と frontmatter の対応にも使う。",
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "group": {
+          "description": "画面上の分類。",
+          "enum": ["方向性", "本文", "仕上げ"]
+        },
+        "label": {
+          "description": "項目一覧に出す短い名前。",
+          "type": "string",
+          "minLength": 1
+        },
+        "question": {
+          "description": "質問文（吹き出しの本文）。",
+          "type": "string",
+          "minLength": 1
+        },
+        "hint": {
+          "description": "質問の下に出す補足・記入のコツ。",
+          "type": "string"
+        },
+        "kind": { "$ref": "#/$defs/kind" },
+        "optional": {
+          "description": "true の場合、「任意」と表示しスキップしやすくする。",
+          "type": "boolean"
+        },
+        "when": { "$ref": "#/$defs/when" },
+        "heading": {
+          "description": "本文の見出し文字列（本文の質問のみ）。書き出し時の Markdown 見出しになる。",
+          "type": "string",
+          "minLength": 1
+        },
+        "level": {
+          "description": "見出しレベル（2 は ##、3 は ###）。heading がある場合に使う。",
+          "enum": [2, 3]
+        },
+        "comment": {
+          "description": "書き出し時に残す HTML コメント（ガイド文）。",
+          "type": "string"
+        },
+        "placeholder": {
+          "description": "入力欄のプレースホルダー。",
+          "type": "string"
+        },
+        "rows": {
+          "description": "テキストエリアの初期の行数（textarea_markdown / list_lines）。",
+          "type": "integer",
+          "minimum": 1
+        },
+        "max": {
+          "description": "件数の上限（text_tags）または文字数の上限（text）。null は無制限。",
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "separators": {
+          "description": "区切り文字の一覧（text_tags）。\" \" は空白を表す。既定は [\",\", \"、\", \"，\", \" \"]。",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "lowercase": {
+          "description": "true の場合、入力を小文字に揃える（text_tags）。Zenn の topics 向け。",
+          "type": "boolean"
+        },
+        "options": {
+          "description": "選択肢（choice_single / choice_multi では必須）。",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["value", "title"],
+            "additionalProperties": false,
+            "properties": {
+              "value": { "type": "string", "minLength": 1 },
+              "title": { "type": "string", "minLength": 1 },
+              "desc": { "type": "string" }
+            }
+          }
+        },
+        "deep": {
+          "description": "「深掘り」チップ。文字列は回答欄に質問を差し込む。quoteWant は『この記事で伝えたいこと』を引用する特殊動作。",
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              {
+                "type": "object",
+                "required": ["label", "action"],
+                "additionalProperties": false,
+                "properties": {
+                  "label": { "type": "string" },
+                  "action": { "enum": ["quoteWant"] }
+                }
+              }
+            ]
+          }
+        },
+        "key": {
+          "description": "frontmatter に書くキー（free 形式のフィールドで使用）。",
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+        },
+        "frontmatter": {
+          "description": "true の場合、frontmatter 項目（Zenn/Qiita のメタ情報）として扱う。画面の見出し表示に使う。",
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "enum": ["choice_single", "choice_multi"] } }, "required": ["kind"] },
+          "then": { "required": ["options"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "bool" } }, "required": ["kind"] },
+          "then": { "not": { "required": ["options"] } }
+        }
+      ]
+    },
+    "kind": {
+      "description": "入力種別。画面の入力欄とエクスポート時の値の型を決める。",
+      "oneOf": [
+        {
+          "const": "text",
+          "title": "テキストボックス（通常）",
+          "description": "1 行の自由入力。タイトルなど。max で文字数上限を指定できる。"
+        },
+        {
+          "const": "text_tags",
+          "title": "テキストボックス（区切りあり・タグなど）",
+          "description": "区切り文字で複数の値に分ける。値は文字列の配列として保存され、書き出し時はリストになる。max で件数上限、lowercase で小文字化。"
+        },
+        {
+          "const": "textarea_markdown",
+          "title": "テキストエリア（通常・Markdown）",
+          "description": "複数行の自由入力。Markdown として書き出す。"
+        },
+        {
+          "const": "list_lines",
+          "title": "テキストエリア（1 行 = 1 項目の箇条書き）",
+          "description": "1 行を 1 項目として箇条書き（- ）に変換する。"
+        },
+        {
+          "const": "date",
+          "title": "日付",
+          "description": "YYYY-MM-DD の日付。"
+        },
+        {
+          "const": "datetime",
+          "title": "日時",
+          "description": "日付と時刻。書き出し時に +09:00 などのタイムゾーンを付ける。「今」ボタンで現在時刻を入れられる。"
+        },
+        {
+          "const": "number",
+          "title": "数値",
+          "description": "数値のみ。書き出し時は数値として出力する。"
+        },
+        {
+          "const": "url",
+          "title": "URL",
+          "description": "URL 文字列。画像はファイルではなく URL を貼る前提。"
+        },
+        {
+          "const": "bool",
+          "title": "真偽（true / false）",
+          "description": "true か false の 2 択。options は持たない（固定）。"
+        },
+        {
+          "const": "choice_single",
+          "title": "選択（単一）",
+          "description": "options から 1 つ選ぶ。選ぶと次の質問へ進む。"
+        },
+        {
+          "const": "choice_multi",
+          "title": "選択（複数）",
+          "description": "options から複数選ぶ。値は文字列の配列。"
+        },
+        {
+          "const": "emoji_single",
+          "title": "絵文字（単一）",
+          "description": "絵文字を 1 つ選ぶ、または直接入力する。"
+        },
+        {
+          "const": "emoji_multi",
+          "title": "絵文字（複数）",
+          "description": "絵文字を複数選ぶ。値は絵文字の配列。"
+        }
+      ]
+    },
+    "when": {
+      "description": "表示条件。すべての条件を満たすときだけ質問を表示する。キーは 'format' か回答済みの質問 id。値は単一の値、または候補の配列（いずれかに一致すればよい）。",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "string" },
+          { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+        ]
+      },
+      "examples": [{ "format": "zenn" }, { "format": "zenn", "type": ["idea", "tech"] }]
+    }
+  }
+};
+        const splitterOf = s => {
+            const seps = s.separators || [',', '、', '，', ' '];
+            const cls = seps.map(c => (c === ' ' ? '\\s' : c.replace(/[\]\\^-]/g, '\\$&'))).join('');
+            return new RegExp('[' + cls + ']+');
+        };
+        function matchWhen(w) {
+            return Object.entries(w).every(([k, exp]) => {
+                const cur = k === 'format' ? curFormat() : val(k);
+                const list = Array.isArray(exp) ? exp : [exp];
+                if (Array.isArray(cur)) return cur.some(x => list.includes(x));
+                return list.includes(cur);
+            });
+        }
+        // 内部の種別 → 質問設定 JSON Schema の kind
+        function schemaKindOf(s) {
+            switch (s.kind) {
+                case 'text':
+                    return { date: 'date', 'datetime-local': 'datetime', number: 'number', url: 'url' }[s.inputType] || 'text';
+                case 'textarea': return 'textarea_markdown';
+                case 'list': return 'list_lines';
+                case 'topics': return 'text_tags';
+                case 'emoji': return s.multi ? 'emoji_multi' : 'emoji_single';
+                case 'choice':
+                    if (s.boolean) return 'bool';
+                    return s.multi ? 'choice_multi' : 'choice_single';
+                default: return s.kind;
+            }
+        }
+        let STEPS = [];
+        let STEP_BY_ID = {};
+        function curFormat() {
+            const f = state && state.answers ? state.answers.format : null;
+            return FORMATS.includes(f) ? f : 'zenn';
+        }
+        function freeFields() { return (state && state.freeFields) || []; }
+        function fieldStep(f) {
+            return Object.assign({
+                id: f.id, group: '仕上げ', label: f.key, q: `${f.key} を入力してください`,
+                hint: FIELD_HINT[f.kind] || '', fm: true, fieldKey: f.key, fieldKind: f.kind
+            }, FIELD_STEP_DEFS[f.kind] || FIELD_STEP_DEFS.text);
+        }
+        function buildSteps(fmt = curFormat()) {
+            const list = [FORMAT_STEP];
+            if (fmt === 'zenn') list.push(ZENN_STEPS[0]);
+            if (fmt === 'free') list.push(FIELDS_STEP);
+            list.push(...BODY_STEPS);
+            if (fmt === 'zenn') list.push(...ZENN_STEPS.slice(1));
+            if (fmt === 'qiita') list.push(...QIITA_STEPS);
+            if (fmt === 'free') freeFields().forEach(f => list.push(fieldStep(f)));
+            return list;
+        }
+        function rebuildSteps() {
+            STEPS = buildSteps().filter(s => !s.when || matchWhen(s.when));
+            STEP_BY_ID = Object.fromEntries(STEPS.map(s => [s.id, s]));
+        }
+        const newFieldId = () => 'ff' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        function pad2(n) { return String(n).padStart(2, '0'); }
+        function toLocalInput(v) {
+            if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) return v;
+            if (!v) return '';
+            const d = v instanceof Date ? v : new Date(v);
+            if (isNaN(d)) return '';
+            return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+        }
+        function nowLocal() { return toLocalInput(new Date()); }
+        function defaultFreeFields() {
+            return [['title', 'text'], ['thumbnail', 'url'], ['category', 'text'], ['tags', 'text_tags'], ['created_at', 'datetime'], ['updated_at', 'datetime']]
+                .map(([key, kind]) => ({ id: newFieldId(), key, kind }));
+        }
+        function initFreeFields() {
+            state.freeFields = defaultFreeFields();
+            const ca = state.freeFields.find(f => f.key === 'created_at');
+            if (ca) state.answers[ca.id] = nowLocal();
+        }
         const EMOJIS = ['📝', '💡', '🔧', '🛠️', '🚀', '🐛', '⚙️', '📦', '🧪', '🔥', '🧩', '📚', '🔍', '🧠', '⚡', '🐳', '☁️', '🔐', '🎨', '📊', '🤖', '🌱', '🏗️', '🎉'];
 
         /* ---------- state ---------- */
         function defaultState() {
-            return { answers: { emoji: '📝' }, skipped: {}, current: 0, fillOnly: false, published: false, extras: [], keepComments: true, view: 'preview' };
+            return { answers: { emoji: '📝' }, skipped: {}, current: 0, fillOnly: false, published: false, extras: [], keepComments: true, view: 'preview', freeFields: [] };
         }
         let state = (() => {
             try {
                 const s = JSON.parse(lsGet(KEY, ''));
-                if (s && typeof s === 'object' && s.answers) return Object.assign(defaultState(), s);
+                if (s && typeof s === 'object' && s.answers) { if (!s.answers.format) s.answers.format = 'zenn'; return Object.assign(defaultState(), s); }
             } catch (e) { }
             return defaultState();
         })();
@@ -1304,6 +1686,7 @@
 
         const val = id => state.answers[id];
         function isFilled(id) {
+            if (STEP_BY_ID[id] && STEP_BY_ID[id].noAnswer) return true;
             const v = val(id);
             if (Array.isArray(v)) return v.length > 0;
             return typeof v === 'string' && v.trim() !== '';
@@ -1323,21 +1706,64 @@
             if (!v) return '';
             return step.kind === 'list' ? listToMd(v) : v;
         }
+        function yamlScalar(kind, v) {
+            switch (kind) {
+                case 'number':
+                    return v !== undefined && String(v).trim() !== '' && !isNaN(Number(v)) ? String(Number(v)) : '""';
+                case 'bool':
+                    return v === 'true' ? 'true' : 'false';
+                case 'datetime':
+                    return v ? yq(toIsoWithOffset(v)) : '""';
+                default:
+                    return yq(String(v || '').trim());
+            }
+        }
+        function toIsoWithOffset(v) {
+            if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) return v;
+            const off = -new Date(v).getTimezoneOffset();
+            const a = Math.abs(off);
+            return `${v}:00${off >= 0 ? '+' : '-'}${pad2(Math.floor(a / 60))}:${pad2(a % 60)}`;
+        }
+        const plainOrQuoted = t => (/^[\w.+#-]+$/.test(t) ? t : yq(t));
         function buildMarkdown() {
             const a = state.answers;
+            const fmt = curFormat();
             const out = [];
             out.push('---');
-            out.push(isFilled('title') ? 'title: ' + yq(a.title.trim()) : 'title: "" # ' + TITLE_COMMENT);
-            out.push('emoji: ' + yq((a.emoji || '📝').trim()));
-            out.push(isFilled('type') ? 'type: ' + yq(a.type) : 'type: "" # ' + TYPE_COMMENT);
-            out.push('topics: [' + (a.topics || []).map(yq).join(', ') + ']');
-            out.push('published: ' + (state.published ? 'true' : 'false'));
+            if (fmt === 'zenn') {
+                out.push(isFilled('title') ? 'title: ' + yq(a.title.trim()) : 'title: "" # ' + TITLE_COMMENT);
+                out.push('emoji: ' + yq((a.emoji || '📝').trim()));
+                out.push(isFilled('type') ? 'type: ' + yq(a.type) : 'type: "" # ' + TYPE_COMMENT);
+                out.push('topics: [' + (a.topics || []).map(yq).join(', ') + ']');
+                out.push('published: ' + (state.published ? 'true' : 'false'));
+            } else if (fmt === 'qiita') {
+                out.push('title: ' + yq((a.title || '').trim()));
+                const tags = a.tags || [];
+                if (tags.length) { out.push('tags:'); tags.forEach(t => out.push('  - ' + plainOrQuoted(t))); }
+                else out.push('tags: []');
+                out.push('private: ' + (a.private === 'true' ? 'true' : 'false'));
+                out.push('updated_at: ""');
+                out.push('id: null');
+                out.push('organization_url_name: null');
+                out.push('slide: false');
+            } else {
+                freeFields().forEach(f => {
+                    const v = val(f.id);
+                    if (f.kind === 'text_tags' || f.kind === 'emoji_multi') {
+                        const arr = v || [];
+                        out.push(arr.length ? f.key + ':' : f.key + ': []');
+                        arr.forEach(t => out.push('  - ' + plainOrQuoted(t)));
+                    } else {
+                        out.push(f.key + ': ' + yamlScalar(f.kind, v));
+                    }
+                });
+            }
             out.push('---');
             out.push('');
             const extrasAfter = key => state.extras.filter(x => x.after === key).forEach(x => { out.push(x.text.trim()); out.push(''); });
             extrasAfter('__top');
             BODY_ORDER.forEach(id => {
-                const s = STEP_BY_ID[id];
+                const s = BODY_BY_ID[id];
                 out.push('#'.repeat(s.level) + ' ' + s.heading);
                 const body = sectionBody(s);
                 if (state.keepComments || !body) out.push(s.comment);
@@ -1366,20 +1792,51 @@
             }
             return v.replace(/\s+#.*$/, '').trim();
         }
-        function parseTopics(raw, following) {
-            let v = raw.replace(/\s+#[^"'\]]*$/, '').trim();
-            if (v.startsWith('[')) {
-                const inner = v.replace(/^\[/, '').replace(/\].*$/, '');
-                return inner.split(',').map(x => parseScalar(x)).map(x => x.trim()).filter(Boolean);
+        function parseFrontMatterMap(src) {
+            const map = {};
+            const lines = src.split('\n');
+            for (let i = 0; i < lines.length; i++) {
+                const m = lines[i].match(/^([A-Za-z_][\w-]*)\s*:\s*(.*)$/);
+                if (!m) continue;
+                const key = m[1], raw = m[2].trim();
+                if (raw === '') {
+                    const list = [];
+                    while (i + 1 < lines.length && /^\s*-\s+/.test(lines[i + 1])) list.push(parseScalar(lines[++i].replace(/^\s*-\s*/, '')));
+                    map[key] = list.length ? { v: list, q: false } : { v: '', q: false };
+                } else if (raw.startsWith('[')) {
+                    const inner = raw.replace(/^\[/, '').replace(/\].*$/, '');
+                    map[key] = { v: inner.split(',').map(x => parseScalar(x).trim()).filter(Boolean), q: false };
+                } else {
+                    map[key] = { v: parseScalar(raw), q: /^["']/.test(raw) };
+                }
             }
-            if (v === '' && following.length) return following.map(x => parseScalar(x.replace(/^\s*-\s*/, ''))).filter(Boolean);
-            return v ? v.split(/[,\s]+/).map(parseScalar).filter(Boolean) : [];
+            return map;
+        }
+        const fmStr = e => {
+            if (!e) return '';
+            if (Array.isArray(e.v)) return e.v.join(', ');
+            return e.v === 'null' || e.v === '~' ? '' : String(e.v);
+        };
+        const fmList = e => {
+            if (!e) return [];
+            if (Array.isArray(e.v)) return e.v.filter(Boolean);
+            return e.v && e.v !== 'null' ? e.v.split(/[,\s]+/).filter(Boolean) : [];
+        };
+        function guessKind(e) {
+            if (Array.isArray(e.v)) return 'text_tags';
+            const v = e.v;
+            if (!e.q && /^(true|false)$/.test(v)) return 'bool';
+            if (!e.q && /^-?\d+(\.\d+)?$/.test(v)) return 'number';
+            if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return 'datetime';
+            if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return 'date';
+            if (/^https?:\/\//.test(v)) return 'url';
+            return 'text';
         }
         const normHeading = s => s.replace(/\s+/g, '').replace(/\(/g, '（').replace(/\)/g, '）');
         const HEADING_MAP = (() => {
             const m = {};
             BODY_ORDER.forEach(id => {
-                const h = STEP_BY_ID[id].heading;
+                const h = BODY_BY_ID[id].heading;
                 m[normHeading(h)] = id;
                 m[normHeading(h.replace(/（.*?）/g, ''))] = id;
             });
@@ -1396,26 +1853,39 @@
         function parseMarkdown(text) {
             text = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
             const answers = {};
-            let published = false;
+            let published = false, format = 'zenn', freeFields = [];
             let body = text;
             const fm = text.match(/^---\n([\s\S]*?)\n---[ \t]*(\n|$)/);
             if (fm) {
                 body = text.slice(fm[0].length);
-                const lines = fm[1].split('\n');
-                for (let i = 0; i < lines.length; i++) {
-                    const m = lines[i].match(/^([A-Za-z_]+)\s*:\s*(.*)$/);
-                    if (!m) continue;
-                    const key = m[1], raw = m[2];
-                    if (key === 'topics') {
-                        const following = [];
-                        while (i + 1 < lines.length && /^\s*-\s+/.test(lines[i + 1])) following.push(lines[++i]);
-                        answers.topics = parseTopics(raw, following).map(t => t.toLowerCase());
-                    } else if (key === 'title') answers.title = parseScalar(raw);
-                    else if (key === 'emoji') answers.emoji = parseScalar(raw);
-                    else if (key === 'type') { const t = parseScalar(raw).toLowerCase(); if (t === 'tech' || t === 'idea') answers.type = t; }
-                    else if (key === 'published') published = parseScalar(raw).toLowerCase() === 'true';
+                const map = parseFrontMatterMap(fm[1]);
+                const has = k => Object.prototype.hasOwnProperty.call(map, k);
+                const keys = Object.keys(map);
+                if (keys.some(k => ['type', 'emoji', 'topics'].includes(k))) format = 'zenn';
+                else if (has('tags') && keys.some(k => ['private', 'slide', 'organization_url_name', 'id'].includes(k))) format = 'qiita';
+                else format = 'free';
+
+                if (format === 'zenn') {
+                    if (has('title')) answers.title = fmStr(map.title);
+                    if (has('emoji')) answers.emoji = fmStr(map.emoji);
+                    if (has('type')) { const t = fmStr(map.type).toLowerCase(); if (t === 'tech' || t === 'idea') answers.type = t; }
+                    if (has('topics')) answers.topics = fmList(map.topics).map(t => t.toLowerCase());
+                    if (has('published')) published = fmStr(map.published).toLowerCase() === 'true';
+                } else if (format === 'qiita') {
+                    if (has('title')) answers.title = fmStr(map.title);
+                    answers.tags = fmList(map.tags);
+                    answers.private = fmStr(map.private).toLowerCase() === 'true' ? 'true' : 'false';
+                } else {
+                    freeFields = keys.map(k => {
+                        const e = map[k], id = newFieldId();
+                        let kind = guessKind(e);
+                        if (kind === 'text' && /_at$/.test(k) && fmStr(e) === '') kind = 'datetime';
+                        answers[id] = kind === 'text_tags' ? fmList(e) : kind === 'bool' ? (fmStr(e) === 'true' ? 'true' : 'false') : fmStr(e);
+                        return { id, key: k, kind };
+                    });
                 }
             }
+            answers.format = format;
             // 見出し（## / ###）で区切る。コードブロック内は無視
             const sections = [{ heading: null, line: '', lines: [] }];
             let fence = null;
@@ -1440,24 +1910,25 @@
                 }
                 const id = HEADING_MAP[normHeading(sec.heading)];
                 if (id && answers[id] === undefined) {
-                    answers[id] = cleanBody(content, STEP_BY_ID[id].kind);
+                    answers[id] = cleanBody(content, BODY_BY_ID[id].kind);
                     last = id;
                 } else {
                     extras.push({ after: last, text: (sec.line + '\n' + content).trim() });
                 }
             });
-            return { answers, published, extras, hasFrontmatter: !!fm };
+            return { answers, published, extras, hasFrontmatter: !!fm, format, freeFields };
         }
 
         function importText(text) {
             const r = parseMarkdown(text);
-            const known = Object.keys(r.answers).length;
+            const known = Object.keys(r.answers).filter(k => k !== 'format').length;
             if (!r.hasFrontmatter && !known) { toast('記事メモとして読み込める内容が見つかりませんでした'); return; }
             state = Object.assign(defaultState(), {
                 answers: Object.assign({ emoji: '📝' }, r.answers),
-                published: r.published, extras: r.extras,
+                freeFields: r.freeFields, published: r.published, extras: r.extras,
                 keepComments: state.keepComments, view: state.view
             });
+            rebuildSteps();
             const first = firstUnfilled();
             state.fillOnly = first !== -1;
             state.current = first === -1 ? STEPS.length : first;
@@ -1500,6 +1971,10 @@
         function setAnswer(id, v) {
             state.answers[id] = v;
             if (isFilled(id)) delete state.skipped[id];
+            if (id === 'format') {
+                if (v === 'free' && !freeFields().length) initFreeFields();
+                rebuildSteps();
+            }
             save();
             refreshSide();
         }
@@ -1519,7 +1994,7 @@
             if (c >= STEPS.length) { renderDone(w); return; }
             const s = STEPS[c];
             const st = statusOf(s.id);
-            const tag = s.heading ? '#'.repeat(s.level) + ' ' + s.heading : (s.id === 'type' || s.id === 'topics' || s.id === 'emoji' || s.id === 'title' ? 'frontmatter: ' + s.id : '');
+            const tag = s.heading ? '#'.repeat(s.level) + ' ' + s.heading : (s.fm ? 'frontmatter: ' + (s.fieldKey || s.id) : '');
             w.innerHTML = `
                 <div class="chat">
                     <div class="bubble-row">
@@ -1544,7 +2019,34 @@
             const chips = $('#chips');
             let focusEl = null;
 
-            if (s.kind === 'textarea' || s.kind === 'list') {
+            if (s.kind === 'choice' && s.multi) {
+                const cur = new Set(val(s.id) || []);
+                ans.innerHTML = '<div class="choice-list">' + s.options.map(o => `
+                    <label class="choice"><input type="checkbox" name="ans" value="${esc(o.value)}" ${cur.has(o.value) ? 'checked' : ''}>
+                    <span><b>${esc(o.title)}</b><span class="hint">${esc(o.desc || '')}</span></span></label>`).join('') + '</div>';
+                $$('input[name="ans"]', ans).forEach(r => r.addEventListener('change', () => {
+                    setAnswer(s.id, $$('input[name="ans"]:checked', ans).map(x => x.value)); updateNavLabel();
+                }));
+                focusEl = $('input[name="ans"]', ans);
+            } else if (s.kind === 'emoji' && s.multi) {
+                const cur = new Set(val(s.id) || []);
+                ans.innerHTML = '<div class="emoji-grid" id="emojiGrid"></div><p class="hint" id="emoCount"></p>';
+                const paint = () => {
+                    $$('#emojiGrid button').forEach(b => b.classList.toggle('on', cur.has(b.textContent)));
+                    $('#emoCount').textContent = '選択中: ' + ([...cur].join(' ') || 'なし');
+                };
+                EMOJIS.forEach(e => {
+                    const b = document.createElement('button');
+                    b.type = 'button'; b.textContent = e; b.setAttribute('aria-label', e);
+                    b.addEventListener('click', () => {
+                        if (cur.has(e)) cur.delete(e); else cur.add(e);
+                        setAnswer(s.id, [...cur]); paint(); updateNavLabel();
+                    });
+                    $('#emojiGrid').appendChild(b);
+                });
+                paint();
+                focusEl = $('#emojiGrid button');
+            } else if (s.kind === 'textarea' || s.kind === 'list') {
                 ans.innerHTML = `<textarea id="ans" rows="${s.rows || 6}" placeholder="${esc(s.placeholder || 'ここに回答を書く（Markdown可）')}"></textarea>
                     <div class="counter hint"><span>${s.kind === 'list' ? '1行 = 1項目（「- 」は自動で付きます）' : 'Markdown が使えます'}</span><span id="cnt"></span></div>`;
                 const ta = $('#ans');
@@ -1570,11 +2072,19 @@
                 });
                 focusEl = ta;
             } else if (s.kind === 'text') {
-                ans.innerHTML = `<input type="text" id="ans" placeholder="${esc(s.placeholder || '')}">
-                    <div class="counter hint"><span>Zenn のタイトルは70文字以内</span><span id="cnt"></span></div>`;
+                const it = s.inputType || 'text';
+                ans.innerHTML = `<div class="text-row"><input type="${it}" id="ans" placeholder="${esc(s.placeholder || '')}"><button type="button" id="btnNow" ${it === 'datetime-local' ? '' : 'hidden'}>今</button></div>
+                    <div class="counter hint"><span>${esc(TEXT_NOTE[it] || '')}</span><span id="cnt"></span></div>`;
                 const inp = $('#ans');
-                inp.value = val(s.id) || '';
-                const cnt = () => { const n = [...inp.value].length; $('#cnt').textContent = n + ' / 70'; $('#cnt').style.color = n > 70 ? 'var(--danger)' : ''; };
+                inp.value = it === 'datetime-local' ? toLocalInput(val(s.id) || '') : (val(s.id) || '');
+                const cnt = () => {
+                    const n = [...inp.value].length;
+                    $('#cnt').textContent = s.max ? n + ' / ' + s.max : (it === 'text' ? n + ' 文字' : '');
+                    $('#cnt').style.color = s.max && n > s.max ? 'var(--danger)' : '';
+                };
+                if (it === 'datetime-local') {
+                    $('#btnNow').addEventListener('click', () => { inp.value = nowLocal(); inp.dispatchEvent(new Event('input')); });
+                }
                 cnt();
                 inp.addEventListener('input', () => { setAnswer(s.id, inp.value); cnt(); updateNavLabel(); });
                 inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && !(e.ctrlKey || e.metaKey)) { e.preventDefault(); next(); } });
@@ -1614,21 +2124,25 @@
                 inp.addEventListener('input', () => { setAnswer(s.id, inp.value.trim()); mark(); updateNavLabel(); });
                 focusEl = inp;
             } else if (s.kind === 'topics') {
-                ans.innerHTML = `<input type="text" id="ans" placeholder="typescript, react, vite">
+                ans.innerHTML = `<input type="text" id="ans" placeholder="${esc(s.lower === false ? 'タグ1, タグ2' : 'typescript, react, vite')}">
                     <div id="tagView" style="margin-top:8px"></div>`;
                 const inp = $('#ans');
                 inp.value = (val(s.id) || []).join(', ');
                 const parse = () => {
-                    const arr = [...new Set(inp.value.split(/[,\s、，]+/).map(t => t.trim().toLowerCase().replace(/^#/, '')).filter(Boolean))];
+                    const arr = [...new Set(inp.value.split(splitterOf(s)).map(t => t.trim())
+                        .map(t => s.lower === false ? t : t.toLowerCase().replace(/^#/, '')).filter(Boolean))];
                     $('#tagView').innerHTML = arr.length
-                        ? arr.map((t, i) => `<span class="tag ${i >= MAX_TOPICS ? 'over' : ''}">${esc(t)}</span>`).join('') + (arr.length > MAX_TOPICS ? `<div class="hint" style="color:var(--danger)">6つ目以降は書き出しません（最大 ${MAX_TOPICS} つ）</div>` : '')
-                        : '<span class="hint">まだトピックがありません</span>';
-                    return arr.slice(0, MAX_TOPICS);
+                        ? arr.map((t, i) => `<span class="tag ${s.max && i >= s.max ? 'over' : ''}">${esc(t)}</span>`).join('') + (s.max && arr.length > s.max ? `<div class="hint" style="color:var(--danger)">${s.max + 1}つ目以降は書き出しません（最大 ${s.max} つ）</div>` : '')
+                        : '<span class="hint">まだ項目がありません</span>';
+                    return s.max ? arr.slice(0, s.max) : arr;
                 };
                 parse();
                 inp.addEventListener('input', () => { setAnswer(s.id, parse()); updateNavLabel(); });
                 inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && !(e.ctrlKey || e.metaKey)) { e.preventDefault(); next(); } });
                 focusEl = inp;
+            } else if (s.kind === 'fields') {
+                renderFieldEditor(ans);
+                focusEl = $('#fKey');
             }
 
             $('#btnBack').addEventListener('click', back);
@@ -1721,18 +2235,44 @@
             if (mdReady) return window.DOMPurify.sanitize(window.marked.parse(src, { gfm: true, breaks: true }));
             return '<p style="white-space:pre-wrap">' + esc(src) + '</p>';
         }
+        function titleOf() {
+            if (curFormat() !== 'free') return val('title') || '';
+            const f = freeFields().find(x => x.key === 'title');
+            return f ? (val(f.id) || '') : '';
+        }
+        function emojiOf() {
+            const fmt = curFormat();
+            if (fmt === 'zenn') return val('emoji') || '📝';
+            if (fmt === 'free') {
+                const f = freeFields().find(x => x.kind === 'emoji_single' || x.kind === 'emoji_multi');
+                return f ? (val(f.id) || null) : null;
+            }
+            return null;
+        }
+        function topicsOf() {
+            const fmt = curFormat();
+            if (fmt === 'zenn') return val('topics') || [];
+            if (fmt === 'qiita') return val('tags') || [];
+            return [];
+        }
         function renderPreview() {
-            const a = state.answers;
+            const a = state.answers, fmt = curFormat();
             const typeTxt = a.type === 'tech' ? '💻 tech' : a.type === 'idea' ? '💡 idea' : 'type 未設定';
-            const topics = (a.topics || []).map(t => `<span class="tag">${esc(t)}</span>`).join('') || '<span>トピック未設定</span>';
-            $('#fmView').innerHTML = `<div class="emo">${esc(a.emoji || '📝')}</div>
-                <div style="min-width:0"><p class="ttl ${isFilled('title') ? '' : 'empty'}">${isFilled('title') ? esc(a.title) : '（タイトル未定）'}</p>
-                <div class="meta">${typeTxt} · ${state.published ? '公開' : '下書き (published: false)'}</div><div>${topics}</div></div>`;
+            const meta = fmt === 'zenn' ? `${typeTxt} · ${state.published ? '公開' : '下書き (published: false)'}`
+                : fmt === 'qiita' ? (a.private === 'true' ? '限定共有 (private: true)' : '公開 (private: false)')
+                : `自由形式 · 項目 ${freeFields().length} 件`;
+            const topics = topicsOf().map(t => `<span class="tag">${esc(t)}</span>`).join('')
+                || (fmt === 'free' ? '' : '<span>トピック未設定</span>');
+            const emo = emojiOf();
+            const ttl = titleOf().trim();
+            $('#fmView').innerHTML = (emo !== null ? `<div class="emo">${esc(emo)}</div>` : '')
+                + `<div style="min-width:0"><p class="ttl ${ttl ? '' : 'empty'}">${ttl ? esc(ttl) : '（タイトル未定）'}</p>
+                <div class="meta">${meta}</div><div>${topics}</div></div>`;
             const parts = [];
             const extras = key => state.extras.filter(x => x.after === key).forEach(x => parts.push(`<div class="sec extra" title="テンプレート外の内容（そのまま保持）">${mdToHtml(stripComments(x.text))}</div>`));
             extras('__top');
             BODY_ORDER.forEach(id => {
-                const s = STEP_BY_ID[id];
+                const s = BODY_BY_ID[id];
                 const i = STEPS.indexOf(s);
                 const body = sectionBody(s);
                 const st = statusOf(id);
@@ -1757,24 +2297,118 @@
             $('#rawOut').hidden = !raw;
         }
 
-        const refreshSide = debounce(() => { renderProgress(); renderSteps(); renderPreview(); }, 120);
+        const refreshSide = debounce(() => { rebuildSteps(); renderProgress(); renderSteps(); renderPreview(); }, 120);
         function renderAll(focus) {
+            rebuildSteps();
             renderProgress(); renderSteps(); renderWizard(focus); renderPreview(); renderView();
             $('#keepComments').checked = state.keepComments;
         }
 
         /* ---------- export ---------- */
-        function download() {
-            const md = buildMarkdown();
-            const d = new Date();
-            const ymd = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
-            const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+        function saveBlob(name, text, mime) {
+            const blob = new Blob([text], { type: mime + ';charset=utf-8' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `article-memo-${ymd}.md`;
+            a.download = name;
             document.body.appendChild(a); a.click(); a.remove();
             setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        }
+        const ymdNow = () => { const d = new Date(); return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()); };
+        function download() {
+            saveBlob(`article-memo-${ymdNow()}.md`, buildMarkdown(), 'text/markdown');
             toast('ダウンロードしました');
+        }
+        function buildQuestionConfig() {
+            const questions = STEPS.filter(s => s.kind !== 'fields').map(s => {
+                const o = { id: s.id, group: s.group, label: s.label, kind: schemaKindOf(s), question: s.q };
+                if (s.hint) o.hint = s.hint;
+                if (s.heading) { o.heading = s.heading; o.level = s.level; }
+                if (s.comment) o.comment = s.comment;
+                if (s.optional) o.optional = true;
+                if (s.placeholder) o.placeholder = s.placeholder;
+                if (s.rows) o.rows = s.rows;
+                if (s.max) o.max = s.max;
+                if (s.kind === 'topics') {
+                    o.separators = s.separators || [',', '、', '，', ' '];
+                    if (s.lower) o.lowercase = true;
+                }
+                if (s.lower === false && s.kind === 'topics') o.lowercase = false;
+                if (s.when) o.when = s.when;
+                if (s.fm) o.frontmatter = true;
+                if (s.fieldKey) o.key = s.fieldKey;
+                if (s.options) o.options = s.options.map(({ value, title, desc }) => (desc ? { value, title, desc } : { value, title }));
+                if (s.deep) o.deep = s.deep;
+                return o;
+            });
+            return { version: 1, format: curFormat(), questions };
+        }
+        function buildAiPrompt() {
+            const schema = JSON.stringify(QUESTION_SCHEMA, null, 2);
+            return [
+                '以下の JSON Schema に厳密に従って、「記事メモウィザード」の質問設定 JSON を作成してください。',
+                '',
+                '## 出力のルール',
+                '- 出力は JSON のみ。説明文やコードフェンスは付けないでください。',
+                '- 最上位は version: 1、format（zenn / qiita / free のいずれか）、questions の 3 つだけにします。',
+                '- questions の並びが画面の回答順です。方向性 → 本文 → 仕上げ の順にしてください。',
+                '- id は英字かアンダースコアで始まる一意な識別子にします。',
+                '- kind は $defs.kind の中から選びます。choice_single / choice_multi には options（1 件以上）が必須、bool には options を付けません。',
+                '- 特定の回答に応じて出す質問は when で条件を書きます（例: {"format": "zenn", "type": ["idea", "tech"]}）。',
+                '- 本文の見出しは heading と level（2 または 3）で指定します。',
+                '- 日時は datetime、日付は date、複数の値をカンマ等で分けて入れるものは text_tags を使います。',
+                '- 絵文字の選択肢は emoji_single / emoji_multi で表します。画像は URL を貼る url 型を使います。',
+                '',
+                '## 作りたい記事メモ',
+                '（ここに、記事の種類・書きたい内容・聞きたい質問を自由に書いてください）',
+                '',
+                '## JSON Schema',
+                '```json',
+                schema,
+                '```'
+            ].join('\n');
+        }
+        function downloadConfig() {
+            const cfg = buildQuestionConfig();
+            saveBlob(`article-memo-questions-${cfg.format}-${ymdNow()}.json`, JSON.stringify(cfg, null, 2) + '\n', 'application/json');
+            toast('質問設定を JSON で書き出しました');
+        }
+        function renderFieldEditor(root) {
+            const list = freeFields();
+            root.innerHTML = `
+                <div class="field-list">${list.length ? list.map((f, i) => `
+                    <div class="field-row">
+                        <code class="fk">${esc(f.key)}</code><span class="hint">${esc(KIND_LABEL[f.kind] || f.kind)}</span>
+                        <span class="fmove">
+                            <button type="button" data-up="${i}" ${i === 0 ? 'disabled' : ''} aria-label="上へ">↑</button>
+                            <button type="button" data-down="${i}" ${i === list.length - 1 ? 'disabled' : ''} aria-label="下へ">↓</button>
+                            <button type="button" data-del="${i}">削除</button>
+                        </span>
+                    </div>`).join('') : '<p class="hint">項目がありません。下から追加してください。</p>'}
+                </div>
+                <div class="field-add">
+                    <input type="text" id="fKey" maxlength="32" placeholder="key（例: thumbnail）" aria-label="キー">
+                    <select id="fKind" aria-label="型">${Object.entries(KIND_LABEL).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}</select>
+                    <button type="button" id="fAdd" class="primary">追加</button>
+                    <button type="button" id="fReset">brite 形式の初期値に戻す</button>
+                </div>
+                <p class="hint">キーは英字かアンダースコアで始まり、英数字と _ - が使えます。</p>`;
+            const mutate = fn => { fn(); rebuildSteps(); save(); renderAll(false); };
+            const swap = (i, j) => { const arr = state.freeFields; [arr[i], arr[j]] = [arr[j], arr[i]]; };
+            root.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => mutate(() => {
+                const [f] = state.freeFields.splice(+b.dataset.del, 1);
+                delete state.answers[f.id];
+            })));
+            root.querySelectorAll('[data-up]').forEach(b => b.addEventListener('click', () => mutate(() => swap(+b.dataset.up, +b.dataset.up - 1))));
+            root.querySelectorAll('[data-down]').forEach(b => b.addEventListener('click', () => mutate(() => swap(+b.dataset.down, +b.dataset.down + 1))));
+            const addField = () => {
+                const key = root.querySelector('#fKey').value.trim();
+                if (!/^[A-Za-z_][A-Za-z0-9_-]*$/.test(key)) { toast('キーは英字かアンダースコアで始まる英数字（- _ も可）で入力してください'); return; }
+                if (freeFields().some(f => f.key === key)) { toast('同じキーが既にあります'); return; }
+                mutate(() => state.freeFields.push({ id: newFieldId(), key, kind: root.querySelector('#fKind').value }));
+            };
+            root.querySelector('#fAdd').addEventListener('click', addField);
+            root.querySelector('#fKey').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); addField(); } });
+            root.querySelector('#fReset').addEventListener('click', () => mutate(() => initFreeFields()));
         }
 
         /* ---------- events ---------- */
@@ -1782,6 +2416,8 @@
         $('#tabRaw').addEventListener('click', () => { state.view = 'raw'; save(); renderView(); });
         $('#btnCopy').addEventListener('click', () => copyText(buildMarkdown()));
         $('#btnDownload').addEventListener('click', download);
+        $('#btnConfig').addEventListener('click', downloadConfig);
+        $('#btnAiPrompt').addEventListener('click', () => copyText(buildAiPrompt()));
         $('#keepComments').addEventListener('change', e => { state.keepComments = e.target.checked; save(); renderPreview(); });
         $('#fillOnly').addEventListener('change', e => {
             state.fillOnly = e.target.checked; save();
@@ -1824,6 +2460,7 @@
             }
         });
 
+        rebuildSteps();
         renderAll(false);
 
         (async () => {
@@ -1841,7 +2478,7 @@
 
         initCommon({
             steps: () => [
-                { popover: { title: '📝 Article Memo Wizard', description: '質問に順番に答えるだけで、Zenn 記事テンプレートに沿った「記事を書く前のメモ」ができあがります。入力はこのブラウザ内に自動保存されます。' } },
+                { popover: { title: '📝 Article Memo Wizard', description: '質問に順番に答えるだけで、Zenn・Qiita・自由形式のいずれかの frontmatter に沿った「記事を書く前のメモ」ができあがります。入力はこのブラウザ内に自動保存されます。' } },
                 { element: '#progress', popover: { title: '進捗', description: 'いま何問目か、記入済み・スキップ・未記入の数が出ます。バーの各マスをクリックするとその質問へ移動します。', side: 'bottom', align: 'start' } },
                 { element: '#wizard', popover: { title: '① 質問に答える', description: '「＋」の深掘り質問をクリックすると回答欄に問いが入ります。答えにくい質問は「スキップ」で後回しにできます。Ctrl / ⌘ + Enter で次へ。', side: 'right', align: 'start' } },
                 { element: '#stepsCard', popover: { title: '② 項目一覧', description: '全項目の状態の一覧です。「未記入だけ巡回」をオンにすると、記入済みの質問を飛ばして進みます。', side: 'right', align: 'start' } },
