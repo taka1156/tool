@@ -1048,11 +1048,15 @@
             <section class="card" id="ioCard">
                 <h2>④ 書き出し・取り込み</h2>
                 <p class="hint" id="cfgStatus" style="margin:0 0 10px"></p>
-                <div class="tabs" role="tablist" id="ioTabs" style="margin-bottom:10px">
-                    <button type="button" role="tab" id="tabMdOut" aria-selected="true" aria-controls="panelMdOut">Markdown 書き出し</button>
-                    <button type="button" role="tab" id="tabMdIn" aria-selected="false" aria-controls="panelMdIn">Markdown 取り込み</button>
-                    <button type="button" role="tab" id="tabJsonOut" aria-selected="false" aria-controls="panelJsonOut">JSON 書き出し</button>
-                    <button type="button" role="tab" id="tabJsonIn" aria-selected="false" aria-controls="panelJsonIn">JSON 取り込み</button>
+                <div id="ioTabs" style="margin-bottom:10px">
+                    <div class="tabs" role="tablist" aria-label="書き出しか取り込みか">
+                        <button type="button" role="tab" id="modeOut" aria-selected="true">書き出し</button>
+                        <button type="button" role="tab" id="modeIn" aria-selected="false">取り込み</button>
+                    </div>
+                    <div class="tabs" role="tablist" aria-label="Markdown か JSON か" style="margin-top:6px">
+                        <button type="button" role="tab" id="fmtMd" aria-selected="true">Markdown</button>
+                        <button type="button" role="tab" id="fmtJson" aria-selected="false">JSON</button>
+                    </div>
                 </div>
 
                 <div id="panelMdOut" role="tabpanel">
@@ -2553,16 +2557,22 @@
         }
         setupDrop($('#drop'), $('#fileIn'), f => readFile(f, importText));
         setupDrop($('#dropCfg'), $('#cfgFileIn'), f => readFile(f, importConfig));
-        // 書き出し・取り込みのタブ
-        const IO_TABS = ['MdOut', 'MdIn', 'JsonOut', 'JsonIn'];
-        function showIoTab(name) {
-            IO_TABS.forEach(n => {
-                const on = n === name;
-                $('#tab' + n).setAttribute('aria-selected', String(on));
-                $('#panel' + n).hidden = !on;
-            });
+        // 書き出し／取り込み（モード）× Markdown／JSON（形式）で、表示するパネルを決める
+        const io = { mode: 'Out', fmt: 'Md' };
+        function showIo() {
+            $('#modeOut').setAttribute('aria-selected', String(io.mode === 'Out'));
+            $('#modeIn').setAttribute('aria-selected', String(io.mode === 'In'));
+            $('#fmtMd').setAttribute('aria-selected', String(io.fmt === 'Md'));
+            $('#fmtJson').setAttribute('aria-selected', String(io.fmt === 'Json'));
+            ['Md', 'Json'].forEach(f => ['Out', 'In'].forEach(m => {
+                $('#panel' + f + m).hidden = !(f === io.fmt && m === io.mode);
+            }));
         }
-        IO_TABS.forEach(n => $('#tab' + n).addEventListener('click', () => showIoTab(n)));
+        $('#modeOut').addEventListener('click', () => { io.mode = 'Out'; showIo(); });
+        $('#modeIn').addEventListener('click', () => { io.mode = 'In'; showIo(); });
+        $('#fmtMd').addEventListener('click', () => { io.fmt = 'Md'; showIo(); });
+        $('#fmtJson').addEventListener('click', () => { io.fmt = 'Json'; showIo(); });
+        showIo();
         $('#btnPaste').addEventListener('click', () => {
             const t = $('#pasteIn').value;
             if (!t.trim()) { toast('貼り付け欄が空です'); return; }
@@ -2764,7 +2774,7 @@
                 { element: '#wizard', popover: { title: '① 質問に答える', description: '「＋」の深掘り質問をクリックすると回答欄に問いが入ります。答えにくい質問は「スキップ」で後回しにできます。Ctrl / ⌘ + Enter で次へ。', side: 'right', align: 'start' } },
                 { element: '#stepsCard', popover: { title: '② 項目一覧', description: '全項目の状態の一覧です。「未記入だけ巡回」をオンにすると、記入済みの質問を飛ばして進みます。', side: 'right', align: 'start' } },
                 { element: '#previewCard', popover: { title: '③ プレビュー / エクスポート', description: '記事の形でリアルタイムに確認できます。見出しをクリックするとその質問へ。Markdown タブで出力を確認し、コピーや .md ダウンロードは「④ 書き出し・取り込み」の Markdown 書き出しタブです。', side: 'left', align: 'start' } },
-                { element: '#ioTabs', popover: { title: '④ 書き出し・取り込み', description: 'Markdown と JSON の書き出し・取り込みを 4 つのタブで切り替えます。書きかけの .md は「Markdown 取り込み」、質問設定の JSON は「JSON 取り込み」から読み込めます。', side: 'left', align: 'start' } },
+                { element: '#ioTabs', popover: { title: '④ 書き出し・取り込み', description: '「書き出し」「取り込み」を選び、「Markdown」「JSON」で切り替えます。書きかけの .md は「取り込み」→「Markdown」、質問設定の JSON は「取り込み」→「JSON」から読み込めます。', side: 'left', align: 'start' } },
                 { element: '#cfgStatus', popover: { title: '今の設定', description: '形式・本文の項目数・frontmatter の項目数を 1 行で示します。設定を変えると回答は消えるので、ここで確認できます。', side: 'left', align: 'start' } },
                 { element: '#btnTheme', popover: { title: 'ライト / ダーク', description: '「自動（OS設定）」「ライト」「ダーク」を順に切り替えます。', side: 'bottom', align: 'end' } },
                 { element: '#btnHelp', popover: { title: 'ツアーをもう一度', description: 'このボタンでいつでも再表示できます。URLに ?onBoarding=1 を付けて開いても始まります。', side: 'bottom', align: 'end' } }
