@@ -4,25 +4,43 @@
   "title": "Article Memo Question Config",
   "description": "記事メモウィザードの質問設定。質問の並び・入力種別・表示条件を定義する。回答そのものは含まない。",
   "type": "object",
-  "required": ["version", "format", "questions"],
+  "required": [
+    "version",
+    "format",
+    "questions"
+  ],
   "additionalProperties": false,
   "properties": {
-    "version": { "const": 1 },
+    "version": {
+      "const": 1
+    },
     "format": {
       "description": "記事の frontmatter 形式。zenn / qiita / free（完全自由）。",
-      "enum": ["zenn", "qiita", "free"]
+      "enum": [
+        "zenn",
+        "qiita",
+        "free"
+      ]
     },
     "questions": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/question" }
+      "items": {
+        "$ref": "#/$defs/question"
+      }
     }
   },
   "$defs": {
     "question": {
       "type": "object",
       "description": "1 つの質問。回答順は配列の順番どおり。",
-      "required": ["id", "group", "label", "question", "kind"],
+      "required": [
+        "id",
+        "group",
+        "label",
+        "question",
+        "kind"
+      ],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -32,7 +50,11 @@
         },
         "group": {
           "description": "画面上の分類。",
-          "enum": ["方向性", "本文", "仕上げ"]
+          "enum": [
+            "方向性",
+            "本文",
+            "仕上げ"
+          ]
         },
         "label": {
           "description": "項目一覧に出す短い名前。",
@@ -48,20 +70,27 @@
           "description": "質問の下に出す補足・記入のコツ。",
           "type": "string"
         },
-        "kind": { "$ref": "#/$defs/kind" },
+        "kind": {
+          "$ref": "#/$defs/kind"
+        },
         "optional": {
           "description": "true の場合、「任意」と表示しスキップしやすくする。",
           "type": "boolean"
         },
-        "when": { "$ref": "#/$defs/when" },
+        "when": {
+          "$ref": "#/$defs/when"
+        },
         "heading": {
-          "description": "本文の見出し文字列（本文の質問のみ）。書き出し時の Markdown 見出しになる。",
+          "description": "本文の質問の見出し文字列。group が 本文 のときは必須。書き出し時の Markdown 見出しになる。",
           "type": "string",
           "minLength": 1
         },
         "level": {
           "description": "見出しレベル（2 は ##、3 は ###）。heading がある場合に使う。",
-          "enum": [2, 3]
+          "enum": [
+            2,
+            3
+          ]
         },
         "comment": {
           "description": "書き出し時に残す HTML コメント（ガイド文）。",
@@ -78,14 +107,20 @@
         },
         "max": {
           "description": "件数の上限（text_tags）または文字数の上限（text）。null は無制限。",
-          "type": ["integer", "null"],
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 1
         },
         "separators": {
           "description": "区切り文字の一覧（text_tags）。\" \" は空白を表す。既定は [\",\", \"、\", \"，\", \" \"]。",
           "type": "array",
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "lowercase": {
           "description": "true の場合、入力を小文字に揃える（text_tags）。Zenn の topics 向け。",
@@ -97,12 +132,23 @@
           "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["value", "title"],
+            "required": [
+              "value",
+              "title"
+            ],
             "additionalProperties": false,
             "properties": {
-              "value": { "type": "string", "minLength": 1 },
-              "title": { "type": "string", "minLength": 1 },
-              "desc": { "type": "string" }
+              "value": {
+                "type": "string",
+                "minLength": 1
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "desc": {
+                "type": "string"
+              }
             }
           }
         },
@@ -111,14 +157,25 @@
           "type": "array",
           "items": {
             "oneOf": [
-              { "type": "string" },
+              {
+                "type": "string"
+              },
               {
                 "type": "object",
-                "required": ["label", "action"],
+                "required": [
+                  "label",
+                  "action"
+                ],
                 "additionalProperties": false,
                 "properties": {
-                  "label": { "type": "string" },
-                  "action": { "enum": ["quoteWant"] }
+                  "label": {
+                    "type": "string"
+                  },
+                  "action": {
+                    "enum": [
+                      "quoteWant"
+                    ]
+                  }
                 }
               }
             ]
@@ -130,18 +187,98 @@
           "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
         },
         "frontmatter": {
-          "description": "true の場合、frontmatter 項目（Zenn/Qiita のメタ情報）として扱う。画面の見出し表示に使う。",
+          "description": "true の場合、frontmatter の項目（キーは key で指定）。完全自由形式で使う。",
           "type": "boolean"
         }
       },
       "allOf": [
         {
-          "if": { "properties": { "kind": { "enum": ["choice_single", "choice_multi"] } }, "required": ["kind"] },
-          "then": { "required": ["options"] }
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "choice_single",
+                  "choice_multi"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "options"
+            ]
+          }
         },
         {
-          "if": { "properties": { "kind": { "const": "bool" } }, "required": ["kind"] },
-          "then": { "not": { "required": ["options"] } }
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "bool"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "options"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "group": {
+                "const": "本文"
+              }
+            },
+            "required": [
+              "group"
+            ]
+          },
+          "then": {
+            "required": [
+              "heading",
+              "level"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "frontmatter": {
+                "const": true
+              }
+            },
+            "required": [
+              "frontmatter"
+            ]
+          },
+          "then": {
+            "required": [
+              "key"
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "heading"
+            ]
+          },
+          "then": {
+            "properties": {
+              "group": {
+                "const": "本文"
+              }
+            }
+          }
         }
       ]
     },
@@ -221,11 +358,30 @@
       "minProperties": 1,
       "additionalProperties": {
         "anyOf": [
-          { "type": "string" },
-          { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          }
         ]
       },
-      "examples": [{ "format": "zenn" }, { "format": "zenn", "type": ["idea", "tech"] }]
+      "examples": [
+        {
+          "format": "zenn"
+        },
+        {
+          "format": "zenn",
+          "type": [
+            "idea",
+            "tech"
+          ]
+        }
+      ]
     }
   }
 }
