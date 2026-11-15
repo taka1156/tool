@@ -1075,13 +1075,14 @@
                 <details style="margin-top:8px">
                     <summary>質問設定（JSON）の書き方</summary>
                     <div class="hint" style="margin-top:6px;line-height:1.7">
-                        <p style="margin:0 0 6px">読み込むと、<b>形式</b>と<b>完全自由の frontmatter 項目（キー・型）</b>が切り替わります。質問の文言・順番・hint は変わりません。本文の回答は消えません。</p>
+                        <p style="margin:0 0 6px">読み込むと、<b>形式</b>、<b>完全自由の frontmatter 項目（キー・型）</b>、<b>本文の質問と見出し</b>が切り替わります。本文の項目がない設定は本文を変えません。本文から外れた項目の回答は残りますが、書き出しには含まれません。</p>
                         <ul style="margin:0 0 6px;padding-left:18px">
                             <li><code>version</code> は <code>1</code></li>
                             <li><code>format</code> は <code>zenn</code> / <code>qiita</code> / <code>free</code> のどれか</li>
                             <li><code>free</code> の項目は、<code>frontmatter: true</code> と <code>key</code> と <code>kind</code> を持つ質問。どちらかがなければ無視されます</li>
                             <li><code>kind</code> は <code>text</code> / <code>text_tags</code> / <code>url</code> / <code>number</code> / <code>date</code> / <code>datetime</code> / <code>bool</code> / <code>emoji_single</code> / <code>emoji_multi</code></li>
-                            <li><code>zenn</code> / <code>qiita</code> の場合、項目は形式の固定項目なので JSON の項目は読みません</li>
+                            <li><code>zenn</code> / <code>qiita</code> の場合、frontmatter の項目は形式の固定項目なので、JSON の frontmatter 項目は読みません（本文の項目は読みます）</li>
+                            <li>本文の項目は <code>group: "本文"</code> と <code>heading</code>（と <code>level</code>: 2 か 3）を持つ質問。<code>heading</code> がないものは本文に入りません</li>
                         </ul>
                         <p style="margin:0 0 4px">例（完全自由・項目 2 つ）</p>
                         <pre style="margin:0;white-space:pre-wrap;font-size:12px;background:var(--surface-1);padding:8px;border-radius:var(--radius)">{
@@ -2599,7 +2600,7 @@
             el.innerHTML = '<b style="color:var(--text-primary)">取り込みの結果</b><ul style="margin:4px 0 0;padding-left:18px">'
                 + lines.map(l => `<li>${esc(l)}</li>`).join('') + '</ul>';
         }
-        // 質問設定（JSON）を読み込む。形式と frontmatter の項目（キー・型）を置き換える
+        // 質問設定（JSON）を読み込む。形式・frontmatter の項目（キー・型）・本文の質問と見出しを置き換える
         // AI の出力のように ``` で囲まれていたら中身だけを取り出す
         function unfence(t) {
             const m = t.trim().match(/^```[\w-]*[^\n]*\n([\s\S]*?)\n?```$/);
@@ -2690,7 +2691,7 @@
                 { element: '#stepsCard', popover: { title: '② 項目一覧', description: '全項目の状態の一覧です。「未記入だけ巡回」をオンにすると、記入済みの質問を飛ばして進みます。', side: 'right', align: 'start' } },
                 { element: '#previewCard', popover: { title: '③ プレビュー / エクスポート', description: '記事の形でリアルタイムに確認できます。見出しをクリックするとその質問へ。Markdown タブで出力を確認し、コピーや .md ダウンロードができます。', side: 'left', align: 'start' } },
                 { element: '#importCard', popover: { title: '④ インポート', description: '書き出した .md や書きかけの記事を読み込むと、埋まっていない項目から順番に質問します。', side: 'left', align: 'start' } },
-                { element: '#btnCfgIn', popover: { title: '⑤ 質問設定（JSON）の読み込み', description: '形式と完全自由の frontmatter 項目（キー・型）を JSON から読み込みます。書き方は④の「質問設定（JSON）の書き方」を開くと例が出ます。', side: 'top', align: 'start' } },
+                { element: '#btnCfgIn', popover: { title: '⑤ 質問設定（JSON）の読み込み', description: '形式、完全自由の frontmatter 項目（キー・型）、本文の質問と見出しを JSON から読み込みます。書き方は④の「質問設定（JSON）の書き方」を開くと例が出ます。', side: 'top', align: 'start' } },
                 { element: '#exportRow', popover: { title: '書き出し', description: '「質問設定を JSON で書き出し」は今の形式の質問定義を保存します。「AI 用プロンプトをコピー」は、この質問設定の JSON Schema を埋め込んだ AI 向けのプロンプトをコピーします。', side: 'left', align: 'start' } },
                 { element: '#btnTheme', popover: { title: 'ライト / ダーク', description: '「自動（OS設定）」「ライト」「ダーク」を順に切り替えます。', side: 'bottom', align: 'end' } },
                 { element: '#btnHelp', popover: { title: 'ツアーをもう一度', description: 'このボタンでいつでも再表示できます。URLに ?onBoarding=1 を付けて開いても始まります。', side: 'bottom', align: 'end' } }

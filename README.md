@@ -79,6 +79,7 @@ Cloudflare Workersの設定を入力し、`wrangler.jsonc` または `wrangler.t
 - Markdown のコピー・.md ダウンロード（ガイドコメントを残すか選択可）
 - .md のインポート（ファイル選択・ドラッグ&ドロップ・貼り付け）。未記入の項目から順番に質問し、テンプレート外の見出しは保持
 - 質問設定の JSON 書き出し。定義は `docs/feat/article_memo.questions.schema.json`（JSON Schema）に従う
+- 質問設定の JSON 読み込み（形式・frontmatter の項目・本文の質問と見出し）。本文の項目は `group: "本文"` と `heading` を持つ質問
 - AI 用プロンプトのコピー。この Schema を埋め込んだ、質問設定を AI に作らせるためのプロンプトを得られます
 
 ## Claude に頼むとき
