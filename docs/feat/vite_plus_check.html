@@ -613,7 +613,7 @@
             ]},
             { title: 'G. Git フック・コミット運用（加点）', items: [
                 { id: 'g1', kind: 'plus', pts: 1, text: 'husky と lint-staged を使っている（vp staged に置き換えられる）' },
-                { id: 'g2', kind: 'plus', pts: 1, text: 'commitlint や commitizen などのコミットメッセージ系ツールを使っている' }
+                { id: 'g2', kind: 'plus', pts: 1, text: 'commitlint などのコミットメッセージ検証ツールを使っている（Vite+ の .vite-hooks の commit-msg で代替できることを確認済み。commitizen は未確認）' }
             ]}
         ];
         const ALL = GROUPS.flatMap(g => g.items);
