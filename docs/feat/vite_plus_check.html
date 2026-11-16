@@ -610,6 +610,10 @@
                 { id: 'f_solid', kind: 'fw', pts: 2, text: 'Solid' },
                 { id: 'f_astro', kind: 'fw', pts: 1, text: 'Astro（テンプレート部分はlintの対象外）' },
                 { id: 'f_next', kind: 'fw', pts: 1, text: 'Next.js（Vite を使わないため、lint・format・テストだけの移行になりやすい）' }
+            ]},
+            { title: 'G. Git フック・コミット運用（加点）', items: [
+                { id: 'g1', kind: 'plus', pts: 1, text: 'husky と lint-staged を使っている（vp staged に置き換えられる）' },
+                { id: 'g2', kind: 'plus', pts: 1, text: 'commitlint や commitizen などのコミットメッセージ系ツールを使っている' }
             ]}
         ];
         const ALL = GROUPS.flatMap(g => g.items);
