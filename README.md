@@ -19,6 +19,7 @@
 | ドキュメント系 | article memo | `docs/feat/article_memo.html` | 対話形式の質問に答えて記事メモを作成（Zenn風・Qiita風・完全自由の frontmatter）・プレビュー・Markdown入出力・質問設定のJSON書き出し |
 | その他 | wrangler config | `docs/feat/wrangler_config.html` | フォーム入力から wrangler.jsonc / wrangler.toml を生成 |
 | その他 | qr | `docs/feat/qr.html` | QRコード生成・読み取り・画像転送（PC⇄スマホ） |
+| その他 | vite plus check | `docs/feat/vite_plus_check.html` | チェックリストに答えて、Vite+ への移行が完全移行・部分的・非推奨のどれに向くかを判定 |
 
 ### crop
 

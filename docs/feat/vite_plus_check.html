@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="チェックリストに答えて、Vite+ への移行が完全移行・部分的・非推奨のどれに向くかを判定">
+    <title>Vite+ 移行判定</title>
+<!-- tool:head（scripts/tool.py が自動生成。手で編集しない） -->
+<link rel="canonical" href="https://tool.taka1156.site/feat/vite_plus_check.html">
+<link rel="icon" href="../assets/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="tool">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="tool">
+<meta property="og:title" content="Vite+ 移行判定 | tool">
+<meta property="og:description" content="チェックリストに答えて、Vite+ への移行が完全移行・部分的・非推奨のどれに向くかを判定">
+<meta property="og:url" content="https://tool.taka1156.site/feat/vite_plus_check.html">
+<meta property="og:image" content="https://tool.taka1156.site/assets/ogp.png?v=d6b7431c">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Webツール集">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /tool:head -->
+    <meta name="tool:name" content="vite plus check">
+    <meta name="tool:category" content="その他">
+    <meta name="tool:date" content="2026-11-16">
+    <meta name="color-scheme" content="light dark">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.css">
+    <script>
+        // 初回描画前にテーマを適用（ちらつき防止）
+        try {
+            var t = localStorage.getItem('webtools:theme');
+            if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+        } catch (e) { }
+    </script>
+    <style>
+        [hidden] {
+            display: none !important;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            color-scheme: light;
+            --bg: #f5f6f8;
+            --panel: #ffffff;
+            --subtle: #f6f8fa;
+            --hover: #eef0f3;
+            --border: #dfe3e8;
+            --text: #1f2328;
+            --muted: #656d76;
+            --accent: #2563eb;
+            --accent-weak: #e8f0fe;
+            --code-bg: #f3f4f6;
+            --danger: #d1242f;
+            --ok: #1a7f37;
+            --ok-weak: #dafbe1;
+            --warn: #9a6700;
+            --warn-weak: #fff8c5;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                color-scheme: dark;
+                --bg: #0d1117;
+                --panel: #161b22;
+                --subtle: #1c2330;
+                --hover: #222b38;
+                --border: #30363d;
+                --text: #e6edf3;
+                --muted: #8b949e;
+                --accent: #6ea8fe;
+                --accent-weak: #1b2a45;
+                --code-bg: #212a36;
+                --danger: #ff7b72;
+                --ok: #3fb950;
+                --ok-weak: #132d1c;
+                --warn: #d29922;
+                --warn-weak: #2d2510;
+            }
+        }
+
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --bg: #0d1117;
+            --panel: #161b22;
+            --subtle: #1c2330;
+            --hover: #222b38;
+            --border: #30363d;
+            --text: #e6edf3;
+            --muted: #8b949e;
+            --accent: #6ea8fe;
+            --accent-weak: #1b2a45;
+            --code-bg: #212a36;
+            --danger: #ff7b72;
+            --ok: #3fb950;
+            --ok-weak: #132d1c;
+            --warn: #d29922;
+            --warn-weak: #2d2510;
+        }
+
+        html {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .app-header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .app-header h1 {
+            font-size: 16px;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .spacer {
+            flex: 1;
+        }
+
+        button,
+        .btn {
+            font: inherit;
+            font-size: 13px;
+            color: var(--text);
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            line-height: 1.3;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:hover,
+        .btn:hover {
+            background: var(--hover);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #fff;
+        }
+
+        button.primary:hover {
+            background: #1d4ed8;
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 1px;
+        }
+
+        main.layout {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 16px;
+            display: grid;
+            grid-template-columns: minmax(300px, 520px) minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+
+        @media (max-width: 860px) {
+            main.layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .col {
+            min-width: 0;
+            display: grid;
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+
+        .card h2 {
+            font-size: 14px;
+            margin: 0 0 10px;
+        }
+
+        .card h3 {
+            font-size: 13px;
+            margin: 14px 0 6px;
+            color: var(--muted);
+        }
+
+        .card h3:first-of-type {
+            margin-top: 0;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .check {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 6px 4px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .check:hover {
+            background: var(--hover);
+        }
+
+        .check input {
+            margin-top: 4px;
+            flex: none;
+        }
+
+        .check .txt {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .pts {
+            flex: none;
+            font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            color: var(--muted);
+            padding-top: 1px;
+        }
+
+        .pts.neg {
+            color: var(--danger);
+        }
+
+        .pts.block {
+            color: var(--danger);
+            font-weight: 700;
+        }
+
+        .tag {
+            display: inline-block;
+            font-size: 11px;
+            padding: 0 6px;
+            margin-right: 4px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            color: var(--muted);
+        }
+
+        .score-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 6px 0 4px;
+            font-size: 13px;
+        }
+
+        .bar {
+            flex: 1;
+            height: 8px;
+            background: var(--subtle);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .bar > span {
+            display: block;
+            height: 100%;
+            width: 0;
+            background: var(--accent);
+            transition: width .25s;
+        }
+
+        .verdict {
+            border: 1px solid var(--border);
+            border-left: 6px solid var(--muted);
+            border-radius: 8px;
+            padding: 14px 16px;
+            background: var(--subtle);
+        }
+
+        .verdict.full {
+            border-left-color: var(--ok);
+            background: var(--ok-weak);
+        }
+
+        .verdict.partial {
+            border-left-color: var(--warn);
+            background: var(--warn-weak);
+        }
+
+        .verdict.no {
+            border-left-color: var(--danger);
+            background: var(--subtle);
+        }
+
+        .verdict .label {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 0 4px;
+        }
+
+        .verdict p {
+            margin: 6px 0;
+        }
+
+        .reasons {
+            margin: 8px 0 0;
+            padding-left: 18px;
+            font-size: 13px;
+        }
+
+        .reasons li {
+            margin: 2px 0;
+        }
+
+        .tier-legend {
+            display: grid;
+            gap: 6px;
+            font-size: 13px;
+        }
+
+        .tier-legend div {
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        pre {
+            margin: 0;
+            padding: 10px 12px;
+            background: var(--code-bg);
+            border-radius: 6px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translate(-50%, 20px);
+            background: var(--text);
+            color: var(--bg);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .2s, transform .2s;
+            z-index: 100;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        /* driver.js をテーマに合わせる */
+        .driver-popover {
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .driver-popover-title {
+            font-size: 15px;
+        }
+
+        .driver-popover-description {
+            color: var(--muted);
+        }
+    </style>
+</head>
+
+<body>
+    <header class="app-header">
+        <h1>🧭 Vite+ Migration Check</h1>
+        <div class="spacer"></div>
+        <button id="btnTheme" type="button" title="テーマ切替（自動 / ライト / ダーク）">🌓 自動</button>
+        <button id="btnHelp" type="button" title="使い方ツアー">？</button>
+    </header>
+
+    <main class="layout">
+        <div class="col">
+            <section class="card" id="inputCard">
+                <h2>① チェックリスト</h2>
+                <p class="hint">当てはまる項目にチェックを入れてください。数字は点数で、プラスは移行の後押し、マイナスは見送りの理由です。赤いブロッカーが1つでもあると「非推奨」になります。</p>
+                <div id="checks"></div>
+                <div class="btn-row">
+                    <button id="btnReset" type="button">すべて外す</button>
+                </div>
+            </section>
+        </div>
+        <div class="col">
+            <section class="card" id="outputCard">
+                <h2>② 判定結果</h2>
+                <div class="verdict" id="verdict">
+                    <p class="label" id="verdictLabel">-</p>
+                    <p id="verdictText"></p>
+                </div>
+                <div class="score-row">
+                    <span>スコア</span>
+                    <div class="bar"><span id="scoreBar"></span></div>
+                    <span id="scoreText">0</span>
+                </div>
+                <p class="hint" id="scoreNote"></p>
+                <h3 class="hint" style="margin:12px 0 4px">当てはまった理由</h3>
+                <ul class="reasons" id="reasons"></ul>
+            </section>
+
+            <section class="card">
+                <h2>判定の見方</h2>
+                <div class="tier-legend">
+                    <div><strong>完全移行</strong>：Node.js の管理も <code>vp env</code> に任せたい人が、統合の利点も大きく感じている。</div>
+                    <div><strong>部分的</strong>：統合の利点は取りたいが、Node.js は既存の管理方法を残したい。<code>vp env off</code> で Node 管理を外して使う構成が候補になります。</div>
+                    <div><strong>非推奨</strong>：ブロッカーがあるか、移行の利点が小さい。今の構成を維持する。</div>
+                </div>
+                <p class="hint" style="margin-top:10px">判定基準は Vite+ 1.0 の公開情報（<code>vp</code> が Vite・Vitest・Oxlint・Oxfmt などをまとめ、<code>vp env</code> で Node を管理する。Vite 8 は Node 20.19 以上などを要求）に基づきます。</p>
+            </section>
+
+            <section class="card">
+                <h2>③ 結果をコピー</h2>
+                <pre id="out"></pre>
+                <div class="btn-row">
+                    <button id="btnCopy" type="button" class="primary">Markdownをコピー</button>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        /* ===================== common utilities ===================== */
+        const $ = (s, r = document) => r.querySelector(s);
+        const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+        const lsGet = (k, d = null) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } };
+        const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { } };
+        const debounce = (fn, ms = 150) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+
+        /* ---------- theme (auto / light / dark) ---------- */
+        const THEME_KEY = 'webtools:theme';
+        const THEMES = ['auto', 'light', 'dark'];
+        const THEME_LABEL = { auto: '🌓 自動', light: '☀️ ライト', dark: '🌙 ダーク' };
+        let theme = lsGet(THEME_KEY, 'auto');
+        if (!THEMES.includes(theme)) theme = 'auto';
+        function applyTheme(t) {
+            theme = t;
+            if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+            else document.documentElement.setAttribute('data-theme', t);
+            const b = $('#btnTheme');
+            if (b) b.textContent = THEME_LABEL[t];
+            lsSet(THEME_KEY, t);
+            document.dispatchEvent(new Event('themechange'));
+        }
+
+        /* ---------- toast / clipboard ---------- */
+        let toastTimer;
+        function toast(msg) {
+            let el = $('#toast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'toast'; el.className = 'toast'; el.setAttribute('role', 'status');
+                document.body.appendChild(el);
+            }
+            el.textContent = msg;
+            el.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+        }
+        async function copyText(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+            } catch (e) {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); } catch (e2) { }
+                ta.remove();
+            }
+            toast('コピーしました');
+        }
+
+        /* ---------- lazy script loader ---------- */
+        const _scripts = {};
+        function loadScript(src) {
+            if (!_scripts[src]) {
+                _scripts[src] = new Promise((res, rej) => {
+                    const s = document.createElement('script');
+                    s.src = src;
+                    s.onload = res;
+                    s.onerror = () => { delete _scripts[src]; rej(new Error('読み込みに失敗しました: ' + src)); };
+                    document.head.appendChild(s);
+                });
+            }
+            return _scripts[src];
+        }
+
+        /* ---------- init: theme button + driver.js onboarding ---------- */
+        const DRIVER_JS = 'https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.js.iife.js';
+        function initCommon({ steps } = {}) {
+            applyTheme(theme);
+            const bt = $('#btnTheme');
+            if (bt) bt.addEventListener('click', () => applyTheme(THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]));
+
+            const runTour = async () => {
+                try { await loadScript(DRIVER_JS); } catch (e) { toast('ツアーの読み込みに失敗しました'); return; }
+                const { driver } = window.driver.js;
+                driver({
+                    showProgress: true, allowClose: true,
+                    nextBtnText: '次へ', prevBtnText: '戻る', doneBtnText: '完了',
+                    progressText: '{{current}} / {{total}}',
+                    steps: steps ? steps() : []
+                }).drive();
+            };
+            const bh = $('#btnHelp');
+            if (bh) bh.addEventListener('click', runTour);
+
+            const params = new URLSearchParams(location.search);
+            if (params.get('onBoarding') === '1') {
+                params.delete('onBoarding');
+                const qs = params.toString();
+                try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash); } catch (e) { }
+                if (document.readyState === 'complete') runTour();
+                else window.addEventListener('load', runTour);
+            }
+        }
+
+        /* ===================== このツール固有の処理 ===================== */
+        const KEY = 'webtools:vite-plus-check'; // 設定の自動保存キー（webtools:<ツール名>）
+
+        // kind: plus=統合の利点 / node=Node管理の利点 / nodeNo=Node管理を見送る理由 / minus=見送りの理由 / block=移行できない条件
+        const GROUPS = [
+            { title: 'A. 統合の利点（部分的でも得られる）', items: [
+                { id: 'a1', kind: 'plus', pts: 2, text: 'lint・format・テスト・ビルドのツールが3種類以上バラバラに入っている' },
+                { id: 'a2', kind: 'plus', pts: 2, text: '各ツールの設定ファイルが多く、更新や同期の手間が負担になっている' },
+                { id: 'a3', kind: 'plus', pts: 1, text: 'ローカルとCIで実行するコマンドが食い違うことがある' },
+                { id: 'a4', kind: 'plus', pts: 1, text: '新しく参加した人のセットアップ手順が長い' },
+                { id: 'a5', kind: 'plus', pts: 2, text: 'モノレポで複数パッケージのタスク実行やキャッシュが欲しい' }
+            ]},
+            { title: 'B. Node管理の利点（完全移行の条件）', items: [
+                { id: 'b1', kind: 'node', pts: 2, text: 'プロジェクトごとにNode.jsのバージョンを固定したい' },
+                { id: 'b2', kind: 'node', pts: 3, text: 'チーム全員のNode.jsバージョンを揃えることが課題になっている' },
+                { id: 'b3', kind: 'node', pts: 2, text: '異なるNode.jsで作業して不具合が出た経験がある' }
+            ]},
+            { title: 'C. 見送りの理由（減点）', items: [
+                { id: 'c1', kind: 'nodeNo', pts: -2, text: 'nvm / fnm / Volta / asdf などを既に使い、特に不満がない' },
+                { id: 'c2', kind: 'minus', pts: -2, text: '既存ツールの独自プラグインやカスタムルールに強く依存している' },
+                { id: 'c3', kind: 'minus', pts: -2, text: 'Node.js以外の実行環境（Bun・Deno など）を前提に動かしている' }
+            ]},
+            { title: 'D. 移行できない条件（ブロッカー）', items: [
+                { id: 'd1', kind: 'block', pts: 0, text: 'Node.js 20.19 / 22.12 / 24.12 より古いバージョンを使い続ける必要がある' },
+                { id: 'd2', kind: 'block', pts: 0, text: 'リリースを直前に控えていて、ツールの変更を入れられない' },
+                { id: 'd3', kind: 'block', pts: 0, text: 'CI・デプロイ基盤を変更する権限がない' }
+            ]}
+        ];
+        const ALL = GROUPS.flatMap(g => g.items);
+
+        const checksEl = $('#checks');
+        for (const g of GROUPS) {
+            const h = document.createElement('h3');
+            h.textContent = g.title;
+            checksEl.appendChild(h);
+            for (const it of g.items) {
+                const label = document.createElement('label');
+                label.className = 'check';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.id = it.id;
+                cb.addEventListener('change', onChange);
+                const txt = document.createElement('span');
+                txt.className = 'txt';
+                txt.textContent = it.text;
+                const pts = document.createElement('span');
+                if (it.kind === 'block') { pts.className = 'pts block'; pts.textContent = 'ブロッカー'; }
+                else { pts.className = 'pts' + (it.pts < 0 ? ' neg' : ''); pts.textContent = (it.pts > 0 ? '+' : '') + it.pts; }
+                label.append(cb, txt, pts);
+                checksEl.appendChild(label);
+            }
+        }
+
+        function getChecked() {
+            return ALL.filter(it => $('#' + it.id).checked);
+        }
+
+        function judge() {
+            const checked = getChecked();
+            const blockers = checked.filter(i => i.kind === 'block');
+            const score = checked.reduce((s, i) => s + i.pts, 0);
+            const nodeWant = checked.some(i => i.kind === 'node');
+            const nodeAgainst = checked.some(i => i.kind === 'nodeNo');
+
+            let tier;
+            if (blockers.length > 0) tier = 'no';
+            else if (score >= 8 && nodeWant && !nodeAgainst) tier = 'full';
+            else if (score >= 4) tier = 'partial';
+            else tier = 'no';
+
+            return { tier, checked, blockers, score, nodeWant, nodeAgainst };
+        }
+
+        const TIER = {
+            full: { label: '完全移行', cls: 'full', text: 'Node.jsの管理も vp env に任せると、統合の利点をまとめて得られる構成です。移行の手順を進めてよい段階です。' },
+            partial: { label: '部分的', cls: 'partial', text: '統合の利点は取れますが、Node.jsは既存の管理方法を残す方が合っています。vp env off で Node 管理を外し、vp の統合コマンドだけを使う構成が候補です。' },
+            no: { label: '非推奨', cls: 'no', text: '今の構成を維持する方が安全です。ブロッカーがある場合は解消してから、もう一度判定してください。' }
+        };
+
+        function render() {
+            const r = judge();
+            const t = TIER[r.tier];
+            const v = $('#verdict');
+            v.className = 'verdict ' + t.cls;
+            $('#verdictLabel').textContent = t.label;
+            $('#verdictText').textContent = t.text;
+
+            const max = 15;
+            const pct = Math.max(0, Math.min(100, Math.round((r.score / max) * 100)));
+            $('#scoreBar').style.width = pct + '%';
+            $('#scoreText').textContent = r.score + ' / ' + max;
+            const notes = [];
+            if (r.blockers.length) notes.push('ブロッカーが ' + r.blockers.length + ' 件あるため、点数に関係なく非推奨になります。');
+            else if (r.tier === 'full') notes.push('完全移行は、スコア8点以上かつNode管理の利点があり、Node管理を見送る理由がない場合に出ます。');
+            else if (r.nodeAgainst) notes.push('Node管理を見送る理由があるため、完全移行は出ません。');
+            else if (!r.nodeWant) notes.push('Node管理の利点に当てはまる項目がないため、完全移行は出ません。');
+            $('#scoreNote').textContent = notes.join(' ');
+
+            const ul = $('#reasons');
+            ul.innerHTML = '';
+            if (r.checked.length === 0) {
+                const li = document.createElement('li');
+                li.textContent = 'まだ項目が選ばれていません。';
+                ul.appendChild(li);
+            }
+            for (const it of r.checked) {
+                const li = document.createElement('li');
+                li.textContent = (it.kind === 'block' ? '【ブロッカー】' : (it.pts > 0 ? '+' + it.pts + ' ' : it.pts + ' ')) + it.text;
+                ul.appendChild(li);
+            }
+
+            $('#out').textContent = toMarkdown(r);
+        }
+
+        function toMarkdown(r) {
+            const t = TIER[r.tier];
+            const lines = [
+                '## Vite+ 移行判定: ' + t.label,
+                '',
+                t.text,
+                '',
+                'スコア: ' + r.score + ' / 15',
+                ''
+            ];
+            if (r.checked.length) {
+                lines.push('### 当てはまった項目');
+                for (const it of r.checked) {
+                    const p = it.kind === 'block' ? '【ブロッカー】' : (it.pts > 0 ? '+' + it.pts : String(it.pts));
+                    lines.push('- ' + p + ' ' + it.text);
+                }
+            }
+            return lines.join('\n');
+        }
+
+        function onChange() {
+            lsSet(KEY, JSON.stringify(getChecked().map(i => i.id)));
+            render();
+        }
+
+        // 保存済みの状態を復元
+        try {
+            const saved = JSON.parse(lsGet(KEY, '[]')) || [];
+            for (const id of saved) { const el = $('#' + id); if (el) el.checked = true; }
+        } catch (e) { }
+
+        $('#btnReset').addEventListener('click', () => {
+            ALL.forEach(i => { $('#' + i.id).checked = false; });
+            lsSet(KEY, '[]');
+            render();
+        });
+        $('#btnCopy').addEventListener('click', () => copyText($('#out').textContent));
+
+        render();
+
+        initCommon({
+            steps: () => [
+                { popover: { title: 'Vite+ 移行判定', description: 'チェックリストに答えると、Vite+ への移行が「完全移行 / 部分的 / 非推奨」のどれに向くかを判定します。' } },
+                { element: '#inputCard', popover: { title: '① チェックリスト', description: '当てはまる項目にチェックします。ブロッカーが1つでもあると非推奨になります。', side: 'right', align: 'start' } },
+                { element: '#verdict', popover: { title: '② 判定結果', description: '判定と、判定の根拠になった項目が表示されます。', side: 'left', align: 'start' } },
+                { element: '#out', popover: { title: '③ 結果をコピー', description: '判定結果を Markdown でコピーできます。', side: 'top', align: 'start' } },
+                { element: '#btnTheme', popover: { title: 'ライト / ダーク', description: '「自動」「ライト」「ダーク」を順に切り替えます。', side: 'bottom', align: 'end' } },
+                { element: '#btnHelp', popover: { title: 'ツアーをもう一度', description: 'このボタンでいつでも再表示できます。URLに ?onBoarding=1 を付けて開いても始まります。', side: 'bottom', align: 'end' } }
+            ]
+        });
+    </script>
+<style>@media print{#tool-backlink{display:none!important}}</style><footer id="tool-backlink" style="flex:none;max-width:1200px;margin:0 auto;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));text-align:center"><a href="../index.html" style="display:inline-block;padding:6px 14px;border-radius:999px;background:rgba(127,127,127,.15);color:inherit;font:600 12px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.08em;text-decoration:none;opacity:.85">&larr; 一覧に戻る</a></footer>
+</body>
+
+</html>
