@@ -591,7 +591,15 @@
             { title: 'D. 移行できない条件（ブロッカー）', items: [
                 { id: 'd1', kind: 'block', pts: 0, text: 'Node.js 20.19 / 22.12 / 24.12 より古いバージョンを使い続ける必要がある' },
                 { id: 'd2', kind: 'block', pts: 0, text: 'リリースを直前に控えていて、ツールの変更を入れられない' },
-                { id: 'd3', kind: 'block', pts: 0, text: 'CI・デプロイ基盤を変更する権限がない' }
+                { id: 'd3', kind: 'block', pts: 0, text: 'CI・デプロイ基盤を変更する権限がない' },
+                { id: 'd4', kind: 'block', pts: 0, text: '業務上必須のlintルールが、Oxlintの組み込みプラグインにも JS plugins（ESLint互換）にも無い（例：Angular 向けのルールが必須）' }
+            ]},
+            { title: 'E. FW・プラグインの対応状況', items: [
+                { id: 'e1', kind: 'plus', pts: 2, text: '使っているlint系プラグイン（react・typescript・import・unicorn・jsx-a11y・jest・vitest・nextjs など）が Oxlint の組み込みでカバーされている' },
+                { id: 'e2', kind: 'plus', pts: 1, text: '使っているFW（React / Vue / Svelte など）が Oxlint の対応範囲に入っている' },
+                { id: 'e3', kind: 'minus', pts: -1, text: 'Vue / Svelte のテンプレート部分（script 以外）もlintしたい（Oxlintは script ブロックのみ対象）' },
+                { id: 'e4', kind: 'minus', pts: -1, text: 'ESLint の独自プラグインに依存していて、Oxlint の JS plugins（alpha 段階）で動かす必要がある' },
+                { id: 'e5', kind: 'minus', pts: -1, text: 'Prettier のプラグイン（Tailwind など）に依存していて、Oxfmt での代替を確認していない' }
             ]}
         ];
         const ALL = GROUPS.flatMap(g => g.items);
@@ -653,7 +661,7 @@
             $('#verdictLabel').textContent = t.label;
             $('#verdictText').textContent = t.text;
 
-            const max = 15;
+            const max = ALL.reduce((s, i) => s + (i.pts > 0 ? i.pts : 0), 0);
             const pct = Math.max(0, Math.min(100, Math.round((r.score / max) * 100)));
             $('#scoreBar').style.width = pct + '%';
             $('#scoreText').textContent = r.score + ' / ' + max;
@@ -687,7 +695,7 @@
                 '',
                 t.text,
                 '',
-                'スコア: ' + r.score + ' / 15',
+                'スコア: ' + r.score + ' / ' + ALL.reduce((s, i) => s + (i.pts > 0 ? i.pts : 0), 0),
                 ''
             ];
             if (r.checked.length) {
