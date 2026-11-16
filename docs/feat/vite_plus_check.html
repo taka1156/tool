@@ -586,7 +586,9 @@
             { title: 'C. 見送りの理由（減点）', items: [
                 { id: 'c1', kind: 'nodeNo', pts: -2, text: 'nvm / fnm / Volta / asdf などを既に使い、特に不満がない' },
                 { id: 'c2', kind: 'minus', pts: -2, text: '既存ツールの独自プラグインやカスタムルールに強く依存している' },
-                { id: 'c3', kind: 'minus', pts: -2, text: 'Node.js以外の実行環境（Bun・Deno など）を前提に動かしている' }
+                { id: 'c3', kind: 'minus', pts: -2, text: 'Node.js以外の実行環境（Bun・Deno など）を前提に動かしている' },
+                { id: 'c4', kind: 'nodeNo', pts: -2, text: 'Dev Container / Docker のコンテナ内に Node.js を入れて開発している（コンテナ作成後に vp env で入れ直すと、オーバーヘッドと二重管理が増える）' },
+                { id: 'c5', kind: 'minus', pts: -2, text: 'Angular を使っている（Vite 系ではなく、移行の対象外になりやすい）' }
             ]},
             { title: 'D. 移行できない条件（ブロッカー）', items: [
                 { id: 'd1', kind: 'block', pts: 0, text: 'Node.js 20.19 / 22.12 / 24.12 より古いバージョンを使い続ける必要がある' },
@@ -600,6 +602,14 @@
                 { id: 'e3', kind: 'minus', pts: -1, text: 'Vue / Svelte のテンプレート部分（script 以外）もlintしたい（Oxlintは script ブロックのみ対象）' },
                 { id: 'e4', kind: 'minus', pts: -1, text: 'ESLint の独自プラグインに依存していて、Oxlint の JS plugins（alpha 段階）で動かす必要がある' },
                 { id: 'e5', kind: 'minus', pts: -1, text: 'Prettier のプラグイン（Tailwind など）に依存していて、Oxfmt での代替を確認していない' }
+            ]},
+            { title: 'F. 使用中のフレームワーク（加点。複数選んだ場合は最も高い点を1回だけ加算）', items: [
+                { id: 'f_react', kind: 'fw', pts: 3, text: 'React（Vite + React の構成）' },
+                { id: 'f_vue', kind: 'fw', pts: 3, text: 'Vue（Vite + Vue、Nuxt を含む）' },
+                { id: 'f_svelte', kind: 'fw', pts: 2, text: 'Svelte（SvelteKit を含む）' },
+                { id: 'f_solid', kind: 'fw', pts: 2, text: 'Solid' },
+                { id: 'f_astro', kind: 'fw', pts: 1, text: 'Astro（テンプレート部分はlintの対象外）' },
+                { id: 'f_next', kind: 'fw', pts: 1, text: 'Next.js（Vite を使わないため、lint・format・テストだけの移行になりやすい）' }
             ]}
         ];
         const ALL = GROUPS.flatMap(g => g.items);
@@ -631,10 +641,20 @@
             return ALL.filter(it => $('#' + it.id).checked);
         }
 
+        // 取りうる最大スコア（加点の合計 + フレームワークは最大1件分）
+        function maxScore() {
+            const base = ALL.filter(i => i.kind !== 'fw' && i.pts > 0).reduce((s, i) => s + i.pts, 0);
+            const fwMax = Math.max(0, ...ALL.filter(i => i.kind === 'fw').map(i => i.pts));
+            return base + fwMax;
+        }
+
         function judge() {
             const checked = getChecked();
             const blockers = checked.filter(i => i.kind === 'block');
-            const score = checked.reduce((s, i) => s + i.pts, 0);
+            // フレームワークは複数選んでも最も高い点だけを加算する
+            const fwPicks = checked.filter(i => i.kind === 'fw');
+            const fwBonus = fwPicks.length ? Math.max(...fwPicks.map(i => i.pts)) : 0;
+            const score = checked.filter(i => i.kind !== 'fw').reduce((s, i) => s + i.pts, 0) + fwBonus;
             const nodeWant = checked.some(i => i.kind === 'node');
             const nodeAgainst = checked.some(i => i.kind === 'nodeNo');
 
@@ -661,7 +681,7 @@
             $('#verdictLabel').textContent = t.label;
             $('#verdictText').textContent = t.text;
 
-            const max = ALL.reduce((s, i) => s + (i.pts > 0 ? i.pts : 0), 0);
+            const max = maxScore();
             const pct = Math.max(0, Math.min(100, Math.round((r.score / max) * 100)));
             $('#scoreBar').style.width = pct + '%';
             $('#scoreText').textContent = r.score + ' / ' + max;
@@ -695,7 +715,7 @@
                 '',
                 t.text,
                 '',
-                'スコア: ' + r.score + ' / ' + ALL.reduce((s, i) => s + (i.pts > 0 ? i.pts : 0), 0),
+                'スコア: ' + r.score + ' / ' + maxScore(),
                 ''
             ];
             if (r.checked.length) {
