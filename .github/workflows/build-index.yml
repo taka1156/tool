@@ -23,7 +23,7 @@ jobs:
         with:
           fetch-depth: 0 # tool:date がないツールの日付を git 履歴から推定するため
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
