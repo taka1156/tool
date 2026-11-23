@@ -193,6 +193,43 @@ def to_root(path: Path) -> str:
     return "../" * depth
 
 
+# ---------------------------------------------------------------- CSP（外部への通信を禁止）
+
+# 全ページ共通。読み込み・送信先を同じドメイン（と、ページ内で作る data: / blob:）に限る。
+# ツールに処理を足して違反が出たら、外部ドメインを足すのではなく、ここに必要最小限のスキーム／ディレクティブを足す。
+CSP_POLICY = "; ".join([
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "media-src 'self' data: blob:",
+    "connect-src 'self' data: blob:",  # data: / blob: はページ内で作ったデータの読み直し（Cropper.js の EXIF 読み取りなど）
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'none'",
+])
+CSP_COMMENT = "<!-- tool:csp（外部への通信をブラウザに禁止させる。scripts/tool.py が自動で入れる。手で編集しない） -->"
+CSP_TAG = f'<meta http-equiv="Content-Security-Policy" content="{CSP_POLICY}">'
+CSP_ANY_RE = re.compile(
+    r"[ \t]*(?:" + re.escape(CSP_COMMENT) + r"[ \t]*\n?[ \t]*)?"
+    r"<meta\b[^>]*\bhttp-equiv=[\"']?content-security-policy[\"'\s][^>]*>[ \t]*\n?", re.I)
+
+
+def apply_csp(text: str) -> str:
+    """CSP の meta を <meta charset> の直後（なければ <head> の直後）に 1 つだけ置く。
+    meta の CSP はそれより後に書かれた読み込みにしか効かないので、head のできるだけ先頭に置く。"""
+    body = CSP_ANY_RE.sub("", text)
+    block = CSP_COMMENT + "\n" + CSP_TAG + "\n"
+    m = re.search(r"<meta\b[^>]*\bcharset[^>]*>[ \t]*\n?", body, re.I) or re.search(r"<head[^>]*>[ \t]*\n?", body, re.I)
+    if not m:
+        return body
+    end = m.end()
+    if not body[m.start():end].endswith("\n"):
+        block = "\n" + block
+    return body[:end] + block + body[end:]
+
+
 # ---------------------------------------------------------------- head（canonical・アイコン・OGP）
 
 # 自動生成ブロックに置き換える、手書きの旧タグ（<head> 内だけを対象にする）
@@ -243,6 +280,10 @@ def head_block(text: str, path: Path) -> str:
 
 
 def apply_head(text: str, path: Path) -> str:
+    return apply_csp(_apply_head(text, path))
+
+
+def _apply_head(text: str, path: Path) -> str:
     block = head_block(text, path)
     if HEAD_RE.search(text):
         return HEAD_RE.sub(lambda _: block, text, count=1)
@@ -319,6 +360,11 @@ def lint_text(text: str, path: Path, add_backlink: bool) -> tuple[str, list[str]
     ensure_head('<meta charset="UTF-8">', r"<meta[^>]+charset", "charset")
     ensure_head('<meta name="viewport" content="width=device-width, initial-scale=1">',
                 r"<meta[^>]+name=[\"']?viewport", "viewport")
+
+    new = apply_csp(text)
+    if new != text:
+        fixed.append("CSP（外部への通信を禁止する meta）を追加／更新")
+        text = new
 
     is_index = path.resolve() == INDEX.resolve()
     meta, title = parse_meta(text)

@@ -3,6 +3,8 @@
 
 <head>
   <meta charset="UTF-8">
+<!-- tool:csp（外部への通信をブラウザに禁止させる。scripts/tool.py が自動で入れる。手で編集しない） -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="tool で使っている外部ライブラリ・フォントとライセンスの一覧">
   <title>ライセンス</title>
@@ -214,6 +216,8 @@
     <p>tool は「HTML 1 枚をそのまま開けば動く」という PoC 的な軽さと、<strong>処理がブラウザ内で閉じていて、入力した内容が外部に送られない</strong>ことを大事にしています。</p>
     <p>ビルドツールで依存を管理するとこの軽さが失われる一方、ライブラリを外部 CDN から読み込むと、CDN のドメインがドロップキャッチ（期限切れドメインの再取得）や売却・乗っ取りに遭ったときに配信されるコードを改ざんされ、このサイトで悪意のあるスクリプトが動くおそれがあります（2024 年の polyfill.io で実際に起きました）。改ざんされたスクリプトは、ブラウザ内で閉じているはずの入力内容を外部に送れてしまいます。</p>
     <p>その兼ね合いとして、ビルドはせず、ライブラリ・フォントは外部 CDN から読み込まずに自前で管理する形にしています。ページが読み込むのはこのサイト自身のファイルだけです。</p>
+    <p>さらに全ページに CSP（Content Security Policy）を設定し、このサイト以外への読み込み・送信を<strong>ブラウザ自身が禁止</strong>するようにしています。万一スクリプトが紛れ込んでも、外部にデータを送ることはできません。</p>
+    <p>心配な場合は、ブラウザの開発者ツール（F12 / Mac は ⌥⌘I）の「ネットワーク」タブを開いたままツールを使ってみてください。このサイト（tool.taka1156.site）以外への通信がないことを確認できます。CSP の内容は、ページのソースの <code>Content-Security-Policy</code> で見られます。</p>
     <p>npm の配布物を<strong>改変せずに</strong>このサイトの <code>/vendor/</code> から配信しています。各フォルダにライセンス文を同梱しています。ツール本体（tool のコード）はこの一覧に含みません。</p>
 
     <!-- LICENSES:BEGIN（scripts/tool.py build が docs/vendor/vendor.json から自動生成。手で編集しない） -->

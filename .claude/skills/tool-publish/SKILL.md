@@ -51,6 +51,7 @@ python3 scripts/tool.py lint NAME --fix --backlink
 - `<!DOCTYPE html>` / charset / viewport の欠落
 - ページ下部フッターに「← 一覧に戻る」ボタンを追加（`--backlink`。印刷時は非表示）
 - canonical・ファビコン・iOS アイコン・OGP の `<head>` タグ（`<!-- tool:head -->` ブロック）を追加／更新。手書きの旧タグは取り除かれる
+- CSP（外部への通信を禁止する meta）を `<meta charset>` の直後に追加／更新
 
 報告だけのもの（`[要対応]`）:
 - JS 内の全角クォート疑い → 文字列の区切りに使われていれば半角に直す。
@@ -85,7 +86,7 @@ python3 scripts/tool.py meta NAME \
 python3 scripts/tool.py lint NAME   # OK になること
 ```
 
-可能なら `docs/` で `python3 -m http.server` を立て、Playwright でトップページ → ツール → 「一覧に戻る」を開いて、コンソールエラーがないこと・スマホ幅で崩れないことを見る（ライブラリは `docs/vendor/` から読むので、外部への通信が 1 件もないことも確認する）。
+可能なら `docs/` で `python3 -m http.server` を立て、Playwright でトップページ → ツール → 「一覧に戻る」を開いて、コンソールエラーがないこと・スマホ幅で崩れないことを見る（ライブラリは `docs/vendor/` から読むので、外部への通信が 1 件もないことも確認する）。主な機能（読み込み・変換・ダウンロード・ツアー）を一通り動かし、`document.addEventListener('securitypolicyviolation', …)` で CSP 違反が 0 件であることも見る。
 
 ```bash
 python3 scripts/tool.py build       # トップページの一覧を再生成

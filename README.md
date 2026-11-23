@@ -159,5 +159,6 @@ python3 scripts/tool.py vendor list | check            # 台帳の一覧・確�
 ## 注意点
 
 - 画像処理と設定ファイル生成はブラウザ内で行われます。画像や入力内容を外部サーバーへ送信する処理はありません。
+- 全ページに CSP（`<meta http-equiv="Content-Security-Policy">`）を入れ、同じドメイン以外への読み込み・送信をブラウザに禁止させています。`tool.py` が `<meta charset>` の直後に自動で入れます（ポリシーは `scripts/tool.py` の `CSP_POLICY`）。開発者ツールのネットワークタブで、外部への通信がないことを確認できます。
 - 外部ライブラリ・フォントは外部 CDN から読み込まず、`docs/vendor/` に置いたもの（npm 配布物を無加工・LICENSE 同梱）を同じドメインから配信しています。一覧は `docs/licenses.html`（公開 URL の `/licenses.html`）。
 - `wrangler_config.html` で生成した設定値は、Cloudflare Workersのプロジェクトに合わせて内容を確認してから使用してください。
