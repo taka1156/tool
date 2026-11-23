@@ -10,7 +10,7 @@
     <meta name="tool:category" content="画像系">
     <meta name="tool:date" content="YYYY-MM-DD">
     <meta name="color-scheme" content="light dark">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.css">
+    <link rel="stylesheet" href="../vendor/driver.js/1.3.5/driver.css">
     <script>
         // 初回描画前にテーマを適用（ちらつき防止）
         try {
@@ -359,7 +359,7 @@
         }
 
         /* ---------- init: theme button + driver.js onboarding ---------- */
-        const DRIVER_JS = 'https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.js.iife.js';
+        const DRIVER_JS = '../vendor/driver.js/1.3.5/driver.js.iife.js';
         function initCommon({ steps } = {}) {
             applyTheme(theme);
             const bt = $('#btnTheme');

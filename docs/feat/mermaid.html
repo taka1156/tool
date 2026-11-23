@@ -27,7 +27,7 @@
     <meta name="tool:date" content="2026-10-17">
     <meta name="tool:name" content="mermaid">
     <meta name="color-scheme" content="light dark">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.css">
+    <link rel="stylesheet" href="../vendor/driver.js/1.3.5/driver.css">
     <script>
         // 初回描画前にテーマを適用（ちらつき防止）
         try {
@@ -623,7 +623,7 @@
         </section>
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <script src="../vendor/mermaid/11.17.2/mermaid.min.js"></script>
     <script>
         /* ===================== common utilities ===================== */
         const $ = (s, r = document) => r.querySelector(s);
@@ -767,7 +767,7 @@
         }
 
         /* ---------- init: theme button + driver.js onboarding ---------- */
-        const DRIVER_JS = 'https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.js.iife.js';
+        const DRIVER_JS = '../vendor/driver.js/1.3.5/driver.js.iife.js';
         function initCommon({ steps, beforeTour } = {}) {
             applyTheme(theme);
             const bt = $('#btnTheme');

@@ -18,7 +18,6 @@
 | ドキュメント系 | mermaid | `docs/feat/mermaid.html` | Mermaid図の編集・プレビュー・SVG/PNG保存 |
 | ドキュメント系 | article memo | `docs/feat/article_memo.html` | 対話形式の質問に答えて記事メモを作成（Zenn風・Qiita風・完全自由の frontmatter）・プレビュー・Markdown入出力・質問設定のJSON書き出し |
 | その他 | wrangler config | `docs/feat/wrangler_config.html` | フォーム入力から wrangler.jsonc / wrangler.toml を生成 |
-| その他 | qr | `docs/feat/qr.html` | QRコード生成・読み取り・画像転送（PC⇄スマホ） |
 | その他 | vite plus check | `docs/feat/vite_plus_check.html` | チェックリストに答えて、Vite+ への移行が完全移行・部分的・非推奨のどれに向くかを判定 |
 | その他 | prompt guard | `docs/feat/prompt_guard.html` | AIに送る前のプロンプトから個人情報・社内情報・認証情報を検出して警告・マスク |
 
@@ -116,7 +115,9 @@ AI に貼り付ける前の文章から、個人情報・社内情報・認証�
 ├── docs/                      # 公開フォルダ（ここだけを公開する）
 │   ├── index.html             # ツール一覧（一覧部分は自動生成）
 │   ├── CNAME                  # 独自ドメイン
+│   ├── licenses.html          # 使用ライブラリ・フォントとライセンスの一覧
 │   ├── assets/                # favicon.ico / apple-touch-icon.png / ogp.png
+│   ├── vendor/                # 外部ライブラリ・フォント（npm 配布物をそのまま。LICENSE 同梱）
 │   └── feat/                  # 各ツールの HTML（公開 URL は /feat/NAME.html）
 ├── scripts/tool.py            # 取り込み・崩れチェック・メタ情報・一覧生成
 ├── .claude/skills/            # tool-style / tool-publish / tool-from-chat
@@ -154,4 +155,5 @@ python3 scripts/tool.py list                           # 一覧を表示
 ## 注意点
 
 - 画像処理と設定ファイル生成はブラウザ内で行われます。画像や入力内容を外部サーバーへ送信する処理はありません。
+- 外部ライブラリ・フォントは外部 CDN から読み込まず、`docs/vendor/` に置いたもの（npm 配布物を無加工・LICENSE 同梱）を同じドメインから配信しています。一覧は `docs/licenses.html`（公開 URL の `/licenses.html`）。
 - `wrangler_config.html` で生成した設定値は、Cloudflare Workersのプロジェクトに合わせて内容を確認してから使用してください。

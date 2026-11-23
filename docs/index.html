@@ -165,6 +165,11 @@
       color: var(--muted);
       font-size: 11px
     }
+
+    footer a {
+      color: var(--accent);
+      text-underline-offset: 2px
+    }
     header {
       display: flex;
       align-items: center;
@@ -226,7 +231,7 @@
   <main>
     <div id="tool-list"></div>
   </main>
-  <footer>画像や入力内容はブラウザ内で処理され、外部には送信されません</footer>
+  <footer>画像や入力内容はブラウザ内で処理され、外部には送信されません。ライブラリも外部 CDN を使わず、このサイトから配信しています（<a href="licenses.html">ライセンス</a>）</footer>
 
   <script>
     // TOOLS:BEGIN（scripts/tool.py build が自動生成。手で編集しない）
@@ -312,15 +317,6 @@ const TOOLS = [
     "title": "Vite+ 移行判定",
     "desc": "チェックリストに答えて、Vite+ への移行が完全移行・部分的・非推奨のどれに向くかを判定",
     "date": "2026-11-16"
-  },
-  {
-    "href": "feat/qr.html",
-    "path": "qr.html",
-    "name": "qr",
-    "category": "その他",
-    "title": "QR Code Generator",
-    "desc": "QRコード生成・読み取り・画像転送（PC⇄スマホ）",
-    "date": "2026-10-26"
   },
   {
     "href": "feat/wrangler_config.html",

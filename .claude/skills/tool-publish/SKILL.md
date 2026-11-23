@@ -56,7 +56,7 @@ python3 scripts/tool.py lint NAME --fix --backlink
 - JS 内の全角クォート疑い → 文字列の区切りに使われていれば半角に直す。
 - 説明・短い名前・追加日の欠落 → 次の手順で付ける。
 
-規約（tool-style）から大きく外れている点（テーマ切替がない、`localStorage` を try/catch なしで使っている、外部 CDN が規定外など）に気づいたら、ユーザーに伝えて直すか確認する。
+規約（tool-style）から大きく外れている点（テーマ切替がない、`localStorage` を try/catch なしで使っている、外部ドメイン（CDN・Google Fonts など）から読み込んでいるなど）に気づいたら、ユーザーに伝えて直すか確認する。
 
 ## 5. メタ情報を付ける
 
@@ -73,7 +73,7 @@ python3 scripts/tool.py meta NAME \
 - **category**: 一覧の見出し。次のどれかにする（`tool.py list` で既存ツールの分け方も見る）。
   - `画像系`: 画像を読み込む・加工する・生成する（compress / crop / favicon / ogp）
   - `ドキュメント系`: 文章・図・コードを書いて整形・プレビュー・書き出しする（markdown / mermaid）
-  - `その他`: 設定ファイル生成、変換ユーティリティなど上に当てはまらないもの（wrangler config / qr）
+  - `その他`: 設定ファイル生成、変換ユーティリティなど上に当てはまらないもの（wrangler config）
   - どれにも収まらないツールが増えてきたら、新しい分類を作る前にユーザーに確認する。作る場合は `scripts/tool.py` の `CATEGORIES` に足す（表示順もそこで決まる）。
 - **title**: `<title>` が適切ならそのまま（`--title` は省略）。og:title は「title | tool」になる。
 - **date**: `--date` を値なしで渡すと今日。一覧は分類ごとに、その中で新しい順。
@@ -85,7 +85,7 @@ python3 scripts/tool.py meta NAME \
 python3 scripts/tool.py lint NAME   # OK になること
 ```
 
-可能なら `docs/` で `python3 -m http.server` を立て、Playwright でトップページ → ツール → 「一覧に戻る」を開いて、コンソールエラーがないこと・スマホ幅で崩れないことを見る（CDN に届かない環境ではライブラリ読み込みエラーは無視してよい）。
+可能なら `docs/` で `python3 -m http.server` を立て、Playwright でトップページ → ツール → 「一覧に戻る」を開いて、コンソールエラーがないこと・スマホ幅で崩れないことを見る（ライブラリは `docs/vendor/` から読むので、外部への通信が 1 件もないことも確認する）。
 
 ```bash
 python3 scripts/tool.py build       # トップページの一覧を再生成
