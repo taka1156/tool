@@ -20,6 +20,7 @@
 | その他 | wrangler config | `docs/feat/wrangler_config.html` | フォーム入力から wrangler.jsonc / wrangler.toml を生成 |
 | その他 | qr | `docs/feat/qr.html` | QRコード生成・読み取り・画像転送（PC⇄スマホ） |
 | その他 | vite plus check | `docs/feat/vite_plus_check.html` | チェックリストに答えて、Vite+ への移行が完全移行・部分的・非推奨のどれに向くかを判定 |
+| その他 | prompt guard | `docs/feat/prompt_guard.html` | AIに送る前のプロンプトから個人情報・社内情報・認証情報を検出して警告・マスク |
 
 ### crop
 
@@ -82,6 +83,19 @@ Cloudflare Workersの設定を入力し、`wrangler.jsonc` または `wrangler.t
 - 質問設定の JSON 書き出し。定義は `docs/feat/article_memo.questions.schema.json`（JSON Schema）に従う
 - 質問設定の JSON 読み込み（形式・frontmatter の項目・本文の質問と見出し）。本文の項目は `group: "本文"` と `heading` を持つ質問
 - AI 用プロンプトのコピー。この Schema を埋め込んだ、質問設定を AI に作らせるためのプロンプトを得られます
+
+### prompt guard
+
+`docs/feat/prompt_guard.html`
+
+AI に貼り付ける前の文章から、個人情報・社内情報・認証情報っぽいものを検出して警告するツールです。ルールベース（正規表現＋検証）で、入力はブラウザ内だけで処理し、本文は保存しません。
+
+- 検出対象: 秘密鍵・APIキー・パスワード / マイナンバー・クレジットカード・口座番号・メール・電話・郵便番号・住所・氏名・生年月日 / 機密ラベル・未公開の示唆・社員番号・社内URL・プライベートIP・業績や人事の金額
+- 検証: クレカは Luhn ＋ ブランド（IIN・桁数）、マイナンバーはチェックデジット、電話番号は日本の番号体系（携帯 / IP / フリーダイヤル / 固定）
+- 重大・要確認・参考の 3 段階でハイライトし、全体を 4 段階で判定
+- 社内辞書（会社名・プロジェクト名など）。辞書だけ localStorage に保存
+- マスク済みテキスト（`[EMAIL_1]` 形式。同じ文字列は同じ番号）のコピー
+- ロジック説明タブ: 処理の流れ・検証ロジック・全ルールの正規表現（ルール定義から自動生成）。正規表現リストを JSON でコピー可能
 
 ## Claude に頼むとき
 

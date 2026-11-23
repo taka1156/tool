@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="AIに送る前のプロンプトから個人情報・社内情報・認証情報を検出して警告・マスク">
+    <title>プロンプト送信前チェッカー</title>
+<!-- tool:head（scripts/tool.py が自動生成。手で編集しない） -->
+<link rel="canonical" href="https://tool.taka1156.site/feat/prompt_guard.html">
+<link rel="icon" href="../assets/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="tool">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="tool">
+<meta property="og:title" content="プロンプト送信前チェッカー | tool">
+<meta property="og:description" content="AIに送る前のプロンプトから個人情報・社内情報・認証情報を検出して警告・マスク">
+<meta property="og:url" content="https://tool.taka1156.site/feat/prompt_guard.html">
+<meta property="og:image" content="https://tool.taka1156.site/assets/ogp.png?v=d6b7431c">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Webツール集">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<!-- /tool:head -->
+    <meta name="tool:name" content="prompt guard">
+    <meta name="tool:category" content="その他">
+    <meta name="tool:date" content="2026-11-23">
+    <meta name="color-scheme" content="light dark">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.css">
+    <script>
+        // 初回描画前にテーマを適用（ちらつき防止）
+        try {
+            var t = localStorage.getItem('webtools:theme');
+            if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+        } catch (e) { }
+    </script>
+    <style>
+        [hidden] {
+            display: none !important;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            color-scheme: light;
+            --bg: #f5f6f8;
+            --panel: #ffffff;
+            --subtle: #f6f8fa;
+            --hover: #eef0f3;
+            --border: #dfe3e8;
+            --text: #1f2328;
+            --muted: #656d76;
+            --accent: #2563eb;
+            --accent-weak: #e8f0fe;
+            --code-bg: #f3f4f6;
+            --danger: #d1242f;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                color-scheme: dark;
+                --bg: #0d1117;
+                --panel: #161b22;
+                --subtle: #1c2330;
+                --hover: #222b38;
+                --border: #30363d;
+                --text: #e6edf3;
+                --muted: #8b949e;
+                --accent: #6ea8fe;
+                --accent-weak: #1b2a45;
+                --code-bg: #212a36;
+                --danger: #ff7b72;
+            }
+        }
+
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --bg: #0d1117;
+            --panel: #161b22;
+            --subtle: #1c2330;
+            --hover: #222b38;
+            --border: #30363d;
+            --text: #e6edf3;
+            --muted: #8b949e;
+            --accent: #6ea8fe;
+            --accent-weak: #1b2a45;
+            --code-bg: #212a36;
+            --danger: #ff7b72;
+        }
+
+        html {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .app-header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .app-header h1 {
+            font-size: 16px;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .spacer {
+            flex: 1;
+        }
+
+        button,
+        .btn {
+            font: inherit;
+            font-size: 13px;
+            color: var(--text);
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            line-height: 1.3;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:hover,
+        .btn:hover {
+            background: var(--hover);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #fff;
+        }
+
+        button.primary:hover {
+            background: #1d4ed8;
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 1px;
+        }
+
+        main.layout {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 16px;
+            display: grid;
+            grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+
+        @media (max-width: 860px) {
+            main.layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .col {
+            min-width: 0;
+            display: grid;
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+
+        .card h2 {
+            font-size: 14px;
+            margin: 0 0 10px;
+        }
+
+        .field {
+            display: grid;
+            gap: 4px;
+            margin-bottom: 10px;
+        }
+
+        .field label {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            font: inherit;
+            font-size: 13px;
+            color: var(--text);
+            background: var(--subtle);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            width: 100%;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        pre {
+            margin: 0;
+            padding: 10px 12px;
+            background: var(--code-bg);
+            border-radius: 6px;
+            overflow-x: auto;
+            font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translate(-50%, 20px);
+            background: var(--text);
+            color: var(--bg);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .2s, transform .2s;
+            z-index: 100;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        /* driver.js をテーマに合わせる */
+        .driver-popover {
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .driver-popover-title {
+            font-size: 15px;
+        }
+
+        .driver-popover-description {
+            color: var(--muted);
+        }
+
+        /* ===== prompt guard 固有 ===== */
+        :root {
+            --high: #c2410c; --high-bg: #fde7dc;
+            --mid: #a16207; --mid-bg: #fdf1c7;
+            --low: #2563eb; --low-bg: #e8f0fe;
+            --ok: #1a7f37; --ok-bg: #dafbe1;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --high: #fb923c; --high-bg: #3d1f12;
+                --mid: #e3b341; --mid-bg: #3a2e0f;
+                --low: #6ea8fe; --low-bg: #1b2a45;
+                --ok: #3fb950; --ok-bg: #12261a;
+            }
+        }
+        :root[data-theme="dark"] {
+            --high: #fb923c; --high-bg: #3d1f12;
+            --mid: #e3b341; --mid-bg: #3a2e0f;
+            --low: #6ea8fe; --low-bg: #1b2a45;
+            --ok: #3fb950; --ok-bg: #12261a;
+        }
+
+        .tabs {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 8px 16px 0;
+            display: flex;
+            gap: 4px;
+            border-bottom: 1px solid var(--border);
+        }
+        .tabs button {
+            border: none;
+            border-bottom: 2px solid transparent;
+            border-radius: 0;
+            background: none;
+            color: var(--muted);
+            font-weight: 600;
+            padding: 8px 12px;
+        }
+        .tabs button:hover { background: none; color: var(--text); }
+        .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+
+        #src { min-height: 280px; resize: vertical; line-height: 1.7; }
+        .row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+        .verdict { border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-weight: 700; }
+        .verdict small { display: block; font-weight: 400; font-size: 12px; opacity: .9; }
+        .v-ok { background: var(--ok-bg); color: var(--ok); }
+        .v-high { background: var(--high-bg); color: var(--high); }
+        .v-mid { background: var(--mid-bg); color: var(--mid); }
+
+        .preview {
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: var(--subtle);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            min-height: 72px;
+            max-height: 320px;
+            overflow: auto;
+        }
+        .preview .empty { color: var(--muted); }
+        mark { color: inherit; border-radius: 3px; padding: 0 2px; }
+        mark.high { background: var(--high-bg); box-shadow: inset 0 -2px var(--high); }
+        mark.mid { background: var(--mid-bg); box-shadow: inset 0 -2px var(--mid); }
+        mark.low { background: var(--low-bg); box-shadow: inset 0 -2px var(--low); }
+
+        ul.findings { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; }
+        ul.findings li { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--border); }
+        .tag { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+        .tag.high { background: var(--high-bg); color: var(--high); }
+        .tag.mid { background: var(--mid-bg); color: var(--mid); }
+        .tag.low { background: var(--low-bg); color: var(--low); }
+        .cat { color: var(--muted); }
+        code { font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; word-break: break-all; }
+        .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+        .card-head h2 { margin: 0; }
+
+        /* ロジック説明 */
+        .logic { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+        .card-head { flex-wrap: wrap; }
+        .logic p, .logic li { margin: 4px 0; }
+        .flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 10px 0 4px; }
+        .step { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px; background: var(--subtle); }
+        .step b { display: block; font-size: 12px; color: var(--muted); }
+        .tablewrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { text-align: left; vertical-align: top; padding: 8px; border-top: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 600; font-size: 12px; white-space: nowrap; }
+        td.nowrap { white-space: nowrap; }
+        #ruleTable td:nth-child(4) { min-width: 200px; }
+        #ruleTable td:nth-child(5) { min-width: 260px; max-width: 420px; }
+    </style>
+</head>
+
+<body>
+    <header class="app-header">
+        <h1>🛡️ Prompt Guard</h1>
+        <div class="spacer"></div>
+        <button id="btnTheme" type="button" title="テーマ切替（自動 / ライト / ダーク）">🌓 自動</button>
+        <button id="btnHelp" type="button" title="使い方ツアー">？</button>
+    </header>
+
+    <nav class="tabs" role="tablist">
+        <button type="button" role="tab" id="tabCheck" aria-selected="true" data-view="viewCheck">チェック</button>
+        <button type="button" role="tab" id="tabLogic" aria-selected="false" data-view="viewLogic">ロジック説明</button>
+    </nav>
+
+    <div id="viewCheck">
+        <main class="layout">
+            <div class="col">
+                <section class="card" id="inputCard">
+                    <h2>① 送信予定のプロンプト</h2>
+                    <div class="field">
+                        <label for="src">AIに送る文章を貼り付け（入力はブラウザ内だけで処理し、保存もしません）</label>
+                        <textarea id="src" rows="12" placeholder="ここにAIへ送る文章を貼り付け…"></textarea>
+                    </div>
+                    <div class="row">
+                        <button id="btnSample" type="button">サンプルを入れる</button>
+                        <button id="btnClear" type="button">クリア</button>
+                    </div>
+                </section>
+                <section class="card" id="dictCard">
+                    <h2>② 社内辞書</h2>
+                    <div class="field">
+                        <label for="dict">会社名・プロジェクト名・顧客名・社内ドメインなど（カンマ区切り）</label>
+                        <input type="text" id="dict" placeholder="例: 株式会社アクメ, Project Falcon, acme-corp.co.jp">
+                    </div>
+                    <div class="hint">登録した語は「重大」として検出します。辞書はこのブラウザにだけ保存されます。</div>
+                </section>
+            </div>
+            <div class="col">
+                <section class="card" id="resultCard">
+                    <h2>③ 判定結果</h2>
+                    <div id="verdict" class="verdict v-ok">まだ何も入力されていません</div>
+                    <div id="preview" class="preview"></div>
+                    <ul id="findings" class="findings"></ul>
+                </section>
+                <section class="card" id="maskedCard">
+                    <div class="card-head">
+                        <h2>④ マスク済みテキスト</h2>
+                        <button id="btnCopy" type="button" class="primary">コピー</button>
+                    </div>
+                    <div id="masked" class="preview"></div>
+                    <div class="hint" style="margin-top:6px">同じ文字列には同じ番号を振るので、マスク後も対応関係は保たれます。</div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <div id="viewLogic" class="logic" hidden>
+        <section class="card">
+            <h2>全体の流れ</h2>
+            <p>すべてブラウザ内のJavaScriptで完結します。サーバー送信・外部API・AIモデルは使っていません（ルールベース）。</p>
+            <div class="flow">
+                <div class="step"><b>① 候補抽出</b>正規表現で「それっぽい文字列」を全ルール分拾う</div>
+                <div class="step"><b>② 検証</b>チェックサムや番号体系で偽物を落とす</div>
+                <div class="step"><b>③ 重なり解消</b>同じ箇所に複数ヒットしたら1つに絞る</div>
+                <div class="step"><b>④ 判定</b>最も重い重大度で全体の警告レベルを決める</div>
+                <div class="step"><b>⑤ マスク</b>ヒット箇所をプレースホルダーに置換</div>
+            </div>
+            <p class="hint">入力が止まって200ms後に自動で再実行します（デバウンス）。</p>
+        </section>
+
+        <section class="card" id="ruleCard">
+            <div class="card-head">
+                <h2>① 候補抽出：検出ルール一覧</h2>
+                <button id="btnCopyRules" type="button">正規表現リストをJSONでコピー</button>
+            </div>
+            <p class="hint">この表はチェックに使っている実際のルール定義から自動生成しています。正規表現はJavaScriptの記法です（<code>g</code>＝全件、<code>i</code>＝大文字小文字無視）。</p>
+            <div class="tablewrap"><table>
+                <thead><tr><th>分類</th><th>対象</th><th>重大度</th><th>抽出の考え方</th><th>正規表現</th><th>② 検証</th></tr></thead>
+                <tbody id="ruleTable"></tbody>
+            </table></div>
+        </section>
+
+        <section class="card">
+            <h2>② 検証ロジックの詳細</h2>
+            <p><b>クレジットカード</b>：2段階。どちらも通ったら「実在しうるカード番号」として扱います（実在の確認はしません）。</p>
+            <ul>
+                <li><b>Luhn</b>：右端から1つおきに2倍（9を超えたら9を引く）して全桁を合計し、10で割り切れるか。適当な数字列の約9割はここで落ちます。</li>
+                <li><b>ブランド判定（IIN＋桁数）</b>：Visa＝4始まり・13/16/19桁、Mastercard＝51–55 / 2221–2720始まり・16桁、Amex＝34/37始まり・15桁、JCB＝3528–3589始まり・16–19桁、Diners＝300–305/36/38/39始まり、Discover＝6011/65/644–649始まり。Luhnがたまたま通った注文番号などをここで落とします。</li>
+            </ul>
+            <p><b>マイナンバー</b>：上位11桁に重み（下から1〜6桁目は2〜7、7〜11桁目は2〜6）を掛けて合計し、11で割った余りが0か1ならチェックデジット0、それ以外は「11−余り」。12桁目と一致するかを見ます。</p>
+            <p><b>電話番号</b>：存在確認はできないので、日本の番号体系に合うかで判定します。<code>+81</code> は <code>0</code> に置き換えてから判定。</p>
+            <ul>
+                <li>携帯：<code>070/080/090</code>＋8桁（計11桁）</li>
+                <li>IP電話：<code>050</code>＋8桁</li>
+                <li>フリーダイヤル：<code>0120</code>＋6桁、<code>0800</code>＋7桁</li>
+                <li>固定：<code>0</code>＋市外局番〜加入者番号で計10桁（<code>0X0</code> 始まりは除外）</li>
+            </ul>
+            <p><b>メールアドレス</b>：形式のみ。到達確認（MXレコード照会など）は検査対象を外部に送ることになるため、意図的にやっていません。</p>
+            <p><b>プライベートIP</b>：IPv4形式のうち 10.x / 172.16–31.x / 192.168.x / 127.x だけを残します（各オクテット255超は除外）。</p>
+        </section>
+
+        <section class="card">
+            <h2>③ 重なり解消 → ④ 判定 → ⑤ マスク</h2>
+            <p><b>重なり解消</b>：全ヒットを「重大度が高い順 → 長い順」に並べ、すでに採用した範囲と重なるものは捨てます。</p>
+            <p><b>判定</b>：ヒットの中で最も重い重大度で全体を決めます。</p>
+            <div class="tablewrap"><table>
+                <thead><tr><th>条件</th><th>表示</th></tr></thead>
+                <tbody>
+                    <tr><td>重大が1件以上</td><td>⛔ このまま送るのはやめましょう</td></tr>
+                    <tr><td>要確認が1件以上</td><td>⚠️ 送る前に確認してください</td></tr>
+                    <tr><td>参考のみ</td><td>🔎 気になる表現があります</td></tr>
+                    <tr><td>なし</td><td>✅ 目立つ情報は見つかりませんでした</td></tr>
+                </tbody>
+            </table></div>
+            <p><b>マスク</b>：ヒット箇所を <code>[種別_連番]</code> に置換。同じ文字列には同じ番号を振ります。</p>
+            <pre>sato@acme.co.jp に連絡、cc: sato@acme.co.jp
+↓
+[EMAIL_1] に連絡、cc: [EMAIL_1]</pre>
+        </section>
+
+        <section class="card">
+            <h2>設計方針と限界</h2>
+            <ul>
+                <li><b>見逃しより誤検知を許す</b>：警告ツールなので、迷うものは「要確認」「参考」で出します。</li>
+                <li><b>文脈は読まない</b>：ルールベースなので「田中さんの件」が実在の人物かどうかは判断できません。辞書を育てるほど精度が上がります。</li>
+                <li><b>検出できないもの</b>：ラベルや敬称のない人名、言い換えられた機密（「例の案件」など）、画像内の文字。</li>
+                <li><b>外部に一切送らない</b>：入力本文は保存もしません。保存するのは社内辞書だけ（localStorage）。</li>
+            </ul>
+        </section>
+    </div>
+
+    <script>
+        /* ===================== common utilities ===================== */
+        const $ = (s, r = document) => r.querySelector(s);
+        const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+        const lsGet = (k, d = null) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } };
+        const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { } };
+        const debounce = (fn, ms = 150) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+
+        /* ---------- theme (auto / light / dark) ---------- */
+        const THEME_KEY = 'webtools:theme';
+        const THEMES = ['auto', 'light', 'dark'];
+        const THEME_LABEL = { auto: '🌓 自動', light: '☀️ ライト', dark: '🌙 ダーク' };
+        let theme = lsGet(THEME_KEY, 'auto');
+        if (!THEMES.includes(theme)) theme = 'auto';
+        function applyTheme(t) {
+            theme = t;
+            if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+            else document.documentElement.setAttribute('data-theme', t);
+            const b = $('#btnTheme');
+            if (b) b.textContent = THEME_LABEL[t];
+            lsSet(THEME_KEY, t);
+            document.dispatchEvent(new Event('themechange'));
+        }
+
+        /* ---------- toast / clipboard ---------- */
+        let toastTimer;
+        function toast(msg) {
+            let el = $('#toast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'toast'; el.className = 'toast'; el.setAttribute('role', 'status');
+                document.body.appendChild(el);
+            }
+            el.textContent = msg;
+            el.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+        }
+        async function copyText(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+            } catch (e) {
+                const ta = document.createElement('textarea');
+                ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); } catch (e2) { }
+                ta.remove();
+            }
+            toast('コピーしました');
+        }
+
+        /* ---------- lazy script loader ---------- */
+        const _scripts = {};
+        function loadScript(src) {
+            if (!_scripts[src]) {
+                _scripts[src] = new Promise((res, rej) => {
+                    const s = document.createElement('script');
+                    s.src = src;
+                    s.onload = res;
+                    s.onerror = () => { delete _scripts[src]; rej(new Error('読み込みに失敗しました: ' + src)); };
+                    document.head.appendChild(s);
+                });
+            }
+            return _scripts[src];
+        }
+
+        /* ---------- init: theme button + driver.js onboarding ---------- */
+        const DRIVER_JS = 'https://cdn.jsdelivr.net/npm/driver.js@1.3.5/dist/driver.js.iife.js';
+        function initCommon({ steps } = {}) {
+            applyTheme(theme);
+            const bt = $('#btnTheme');
+            if (bt) bt.addEventListener('click', () => applyTheme(THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]));
+
+            const runTour = async () => {
+                try { await loadScript(DRIVER_JS); } catch (e) { toast('ツアーの読み込みに失敗しました'); return; }
+                const { driver } = window.driver.js;
+                driver({
+                    showProgress: true, allowClose: true,
+                    nextBtnText: '次へ', prevBtnText: '戻る', doneBtnText: '完了',
+                    progressText: '{{current}} / {{total}}',
+                    steps: steps ? steps() : []
+                }).drive();
+            };
+            const bh = $('#btnHelp');
+            if (bh) bh.addEventListener('click', runTour);
+
+            const params = new URLSearchParams(location.search);
+            if (params.get('onBoarding') === '1') {
+                params.delete('onBoarding');
+                const qs = params.toString();
+                try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash); } catch (e) { }
+                if (document.readyState === 'complete') runTour();
+                else window.addEventListener('load', runTour);
+            }
+        }
+
+        /* ===================== このツール固有の処理 ===================== */
+        const KEY = 'webtools:prompt_guard'; // 社内辞書だけ保存（本文は保存しない）
+
+        /* ---------- 検証ヘルパー ---------- */
+        function luhn(num) {
+            const d = num.replace(/\D/g, ''); if (d.length < 13 || d.length > 19) return false;
+            let s = 0, alt = false;
+            for (let i = d.length - 1; i >= 0; i--) { let n = +d[i]; if (alt) { n *= 2; if (n > 9) n -= 9; } s += n; alt = !alt; }
+            return s % 10 === 0;
+        }
+        // カードのブランド判定（先頭番号=IIN と桁数）。Luhn と両方通れば「実在しうる番号」
+        function cardBrand(num) {
+            const d = num.replace(/\D/g, ''), L = d.length, p2 = +d.slice(0, 2), p4 = +d.slice(0, 4);
+            if (/^4/.test(d) && [13, 16, 19].includes(L)) return 'Visa';
+            if (((p2 >= 51 && p2 <= 55) || (p4 >= 2221 && p4 <= 2720)) && L === 16) return 'Mastercard';
+            if (/^3[47]/.test(d) && L === 15) return 'Amex';
+            if (p4 >= 3528 && p4 <= 3589 && L >= 16 && L <= 19) return 'JCB';
+            if (/^(30[0-5]|36|38|39)/.test(d) && L >= 14 && L <= 19) return 'Diners';
+            if (/^(6011|65|64[4-9])/.test(d) && L >= 16 && L <= 19) return 'Discover';
+            return null;
+        }
+        function card(num) { return luhn(num) && cardBrand(num); }
+        // 日本の番号計画に沿った電話番号の種別判定
+        function telKind(s) {
+            let n = s.replace(/\D/g, ''); if (n.startsWith('81')) n = '0' + n.slice(2);
+            if (/^0[789]0\d{8}$/.test(n)) return '携帯電話';
+            if (/^050\d{8}$/.test(n)) return 'IP電話';
+            if (/^0120\d{6}$/.test(n) || /^0800\d{7}$/.test(n)) return 'フリーダイヤル';
+            if (/^0[1-9]\d{8}$/.test(n) && !/^0[2-9]0/.test(n)) return '固定電話';
+            return null;
+        }
+        function myNumber(num) { // マイナンバー（個人番号）チェックデジット
+            const d = num.replace(/\D/g, ''); if (d.length !== 12) return false;
+            let s = 0;
+            for (let n = 1; n <= 11; n++) { const p = +d[11 - n]; const q = n <= 6 ? n + 1 : n - 5; s += p * q; }
+            const r = s % 11; const cd = r <= 1 ? 0 : 11 - r;
+            return cd === +d[11];
+        }
+        function privateIp(ip) {
+            const p = ip.split('.').map(Number);
+            if (p.some(x => x > 255)) return false;
+            return p[0] === 10 || (p[0] === 172 && p[1] >= 16 && p[1] <= 31) || (p[0] === 192 && p[1] === 168) || p[0] === 127;
+        }
+
+        /* ---------- 検出ルール（sev: high=送るべきでない / mid=要確認 / low=参考） ---------- */
+        const RULES = [
+          {id:'KEY',  cat:'認証情報', label:'秘密鍵', desc:'<code>-----BEGIN … PRIVATE KEY-----</code> ブロック全体', verify:'なし', sev:'high', re:/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(-----END [A-Z ]*PRIVATE KEY-----|$)/g},
+          {id:'KEY',  cat:'認証情報', label:'APIキー / トークン', desc:'サービス固有の接頭辞：<code>sk-</code>（OpenAI/Anthropic系）、<code>AKIA</code>（AWS）、<code>ghp_</code>等（GitHub）、<code>xoxb-</code>等（Slack）、<code>AIza</code>（Google）、<code>eyJ…</code>の3分割（JWT）', verify:'接頭辞＋最低文字数', sev:'high',
+            re:/\b(sk-(?:proj-|ant-)?[A-Za-z0-9_\-]{20,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{30,}|xox[abprs]-[A-Za-z0-9\-]{10,}|AIza[0-9A-Za-z_\-]{35}|eyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,})\b/g},
+          {id:'PASS', cat:'認証情報', label:'パスワード', desc:'「password / パスワード / 暗証番号」＋<code>: =</code>＋値', verify:'なし', sev:'high', re:/(?:password|passwd|pwd|パスワード|暗証番号)\s*[:：=＝]\s*\S+/gi},
+          {id:'MYNO', cat:'個人情報', label:'マイナンバー', desc:'12桁の数字（4桁区切り可）', verify:'個人番号のチェックデジット', sev:'high', re:/(?<!\d)\d{4}[ \-]?\d{4}[ \-]?\d{4}(?!\d)/g, check:myNumber},
+          {id:'CARD', cat:'個人情報', label:'クレジットカード番号', desc:'13〜19桁の数字（空白・ハイフン区切り可）', verify:'Luhn ＋ ブランドの先頭番号と桁数', sev:'high', re:/(?<!\d)(?:\d[ \-]?){12,18}\d(?!\d)/g, check:card, note:s=>cardBrand(s)+'・Luhn一致'},
+          {id:'ACCT', cat:'個人情報', label:'口座番号', desc:'「口座番号 / 普通 / 当座」＋7桁', verify:'なし', sev:'high', re:/(?:口座番号|普通|当座)\s*[:：]?\s*\d{7}/g},
+          {id:'EMAIL',cat:'個人情報', label:'メールアドレス', desc:'<code>ローカル部@ドメイン.TLD</code> の形式', verify:'形式のみ', sev:'mid', re:/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g},
+          {id:'TEL',  cat:'個人情報', label:'電話番号', desc:'<code>0</code> または <code>+81</code> 始まりの数字列（区切り可）', verify:'日本の番号体系（携帯/IP/フリーダイヤル/固定）', sev:'mid', re:/(?<![\d\-])(?:\+81[ \-]?\d{1,4}|0\d{1,4})[ \-]?\d{1,4}[ \-]?\d{3,4}(?![\d\-])/g,
+            check:telKind, note:telKind},
+          {id:'ZIP',  cat:'個人情報', label:'郵便番号', desc:'<code>〒</code>付き、または前後に数字・ハイフンが続かない <code>NNN-NNNN</code>', verify:'なし', sev:'mid', re:/(?:〒\s?|(?<![\d\-]))\d{3}-\d{4}(?![\d\-])/g},
+          {id:'ADDR', cat:'個人情報', label:'住所', desc:'都道府県名 → 市区町村 → 番地まで続く並び', verify:'なし', sev:'mid',
+            re:/(?:北海道|東京都|(?:京都|大阪)府|(?:神奈川|和歌山|鹿児島)県|[一-龥]{2}県)[一-龥ぁ-んァ-ヶ]{1,8}?[市区町村郡][一-龥ぁ-んァ-ヶ0-9０-９\-－ー丁目番地号]{0,20}/g},
+          {id:'NAME', cat:'個人情報', label:'氏名（ラベル付き）', desc:'「氏名 / 担当者 / 患者名」など＋<code>:</code>＋値', verify:'なし', sev:'mid', re:/(?:氏名|名前|お名前|担当者|患者名)\s*[:：]\s*[^\s,、。]{2,12}/g},
+          {id:'NAME', cat:'個人情報', label:'人名っぽい表現', desc:'漢字2〜4文字の直後に「さん / 様 / 氏 / 部長 / 先生」など（敬称は先読みで除外）', verify:'なし（誤検知前提で低め）', sev:'low', re:/[一-龥]{2,4}(?=(?:さん|様|氏|部長|課長|係長|社長|先生|くん|ちゃん))/g},
+          {id:'BDAY', cat:'個人情報', label:'生年月日', desc:'「生年月日 / 誕生日」＋日付（西暦・和暦）', verify:'なし', sev:'mid', re:/(?:生年月日|誕生日|DOB)\s*[:：]?\s*(?:\d{4}|[SHRT昭平令]\d{1,2})[年\/\.\-]\d{1,2}[月\/\.\-]\d{1,2}日?/g},
+          {id:'EMP',  cat:'社内情報', label:'社員番号', desc:'「社員番号 / 社員ID」＋英数字', verify:'なし', sev:'mid', re:/(?:社員番号|社員ID|従業員番号|employee\s?id)\s*[:：]?\s*[A-Za-z0-9\-]+/gi},
+          {id:'CONF', cat:'社内情報', label:'機密ラベル', desc:'「社外秘 / 極秘 / 取扱注意 / confidential / NDA」などの語', verify:'なし', sev:'high', re:/社外秘|部外秘|極秘|厳秘|関係者外秘|取扱注意|機密情報|confidential|internal use only|do not distribute|NDA|インサイダー/gi},
+          {id:'CONF', cat:'社内情報', label:'未公開情報の示唆', desc:'「未公開 / 発表前 / 内部資料 / 社内限り」などの語', verify:'なし', sev:'mid', re:/未公開|未発表|公開前|発表前|リリース前|内部資料|社内限り|オフレコ/g},
+          {id:'URL',  cat:'社内情報', label:'社内URL / ホスト', desc:'<code>.internal .local .corp .lan</code> ドメイン、<code>localhost / jira / confluence / wiki</code> 等', verify:'なし', sev:'mid',
+            re:/\b(?:https?:\/\/)?[A-Za-z0-9\-.]+\.(?:internal|local|corp|lan|intra|intranet)\b[^\s]*|\bhttps?:\/\/(?:localhost|intranet|wiki|confluence|jira|redmine|backlog)[A-Za-z0-9\-.]*[^\s]*/gi},
+          {id:'IP',   cat:'社内情報', label:'プライベートIP', desc:'IPv4形式', verify:'10.x / 172.16–31.x / 192.168.x / 127.x のみ残す', sev:'mid', re:/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, check:privateIp},
+          {id:'MONEY',cat:'社内情報', label:'金額つき業績・人事情報', desc:'「売上 / 利益 / 予算 / 年収 / 賞与」から15文字以内に金額', verify:'なし', sev:'low',
+            re:/(?:売上|売り上げ|利益|営業利益|予算|原価|単価|見積|粗利|年収|給与|給料|賞与|ボーナス)[^\n。]{0,15}?[\d,.０-９]+\s*(?:億|万|千)?円?/g},
+        ];
+
+        const SEVRANK = { high: 3, mid: 2, low: 1 };
+        const SEVJA = { high: '重大', mid: '要確認', low: '参考' };
+        const DICT_DESC = '登録語の完全一致（大文字小文字無視、2文字以上）。登録語はエスケープしてから | でつなぎます';
+        let dictTerms = [];
+        const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const dictRegex = () => dictTerms.length ? new RegExp(dictTerms.map(reEsc).join('|'), 'gi') : null;
+
+        function detect(text) {
+            const rules = RULES.slice();
+            const dre = dictRegex();
+            if (dre) rules.push({ id: 'DICT', cat: '社内情報', label: '社内辞書ヒット', sev: 'high', re: dre });
+            const hits = [];
+            for (const r of rules) {
+                r.re.lastIndex = 0; let m;
+                while ((m = r.re.exec(text))) {
+                    if (!m[0]) { r.re.lastIndex++; continue; }
+                    if (r.check && !r.check(m[0])) continue;
+                    hits.push({ start: m.index, end: m.index + m[0].length, text: m[0], rule: r });
+                }
+            }
+            // 重なりは「重大度が高い → 長い」を優先
+            hits.sort((a, b) => SEVRANK[b.rule.sev] - SEVRANK[a.rule.sev] || (b.end - b.start) - (a.end - a.start));
+            const kept = [];
+            for (const h of hits) if (!kept.some(k => h.start < k.end && k.start < h.end)) kept.push(h);
+            return kept.sort((a, b) => a.start - b.start);
+        }
+
+        function render() {
+            const text = $('#src').value;
+            const hits = detect(text);
+            const c = { high: 0, mid: 0, low: 0 };
+            hits.forEach(h => c[h.rule.sev]++);
+
+            const v = $('#verdict');
+            if (!text.trim()) { v.className = 'verdict v-ok'; v.innerHTML = 'まだ何も入力されていません'; }
+            else if (c.high) { v.className = 'verdict v-high'; v.innerHTML = `⛔ このまま送るのはやめましょう<small>重大 ${c.high}件・要確認 ${c.mid}件・参考 ${c.low}件。マスク済みテキストを使うか、該当箇所を削ってください。</small>`; }
+            else if (c.mid) { v.className = 'verdict v-mid'; v.innerHTML = `⚠️ 送る前に確認してください<small>要確認 ${c.mid}件・参考 ${c.low}件。本当にAIに渡してよい情報か見直しましょう。</small>`; }
+            else if (c.low) { v.className = 'verdict v-mid'; v.innerHTML = `🔎 気になる表現があります<small>参考 ${c.low}件。問題なければそのまま送ってOKです。</small>`; }
+            else { v.className = 'verdict v-ok'; v.innerHTML = '✅ 目立つ個人情報・社内情報は見つかりませんでした<small>機械的なチェックなので、最終判断はご自身で。</small>'; }
+
+            let html = '', masked = '', pos = 0; const seq = {}, map = {};
+            for (const h of hits) {
+                html += esc(text.slice(pos, h.start)) + `<mark class="${h.rule.sev}" title="${esc(h.rule.label)}">${esc(h.text)}</mark>`;
+                const key = h.rule.id + '|' + h.text;
+                if (!map[key]) { seq[h.rule.id] = (seq[h.rule.id] || 0) + 1; map[key] = `[${h.rule.id}_${seq[h.rule.id]}]`; }
+                masked += text.slice(pos, h.start) + map[key];
+                pos = h.end;
+            }
+            html += esc(text.slice(pos)); masked += text.slice(pos);
+            $('#preview').innerHTML = html || '<span class="empty">ここに検出箇所がハイライトされます</span>';
+            $('#masked').textContent = masked;
+            $('#findings').innerHTML = hits.map(h => {
+                const note = h.rule.note ? '（' + esc(h.rule.note(h.text)) + '）' : '';
+                const t = h.text.length > 60 ? h.text.slice(0, 60) + '…' : h.text;
+                return `<li><span class="tag ${h.rule.sev}">${SEVJA[h.rule.sev]}</span><span class="cat">${h.rule.cat}｜${esc(h.rule.label)}${note}</span><code>${esc(t)}</code></li>`;
+            }).join('');
+        }
+
+        /* ---------- ロジック説明の表（RULES から生成） ---------- */
+        function renderRuleTable() {
+            const rows = RULES.map(r => ({ r, re: '/' + r.re.source + '/' + r.re.flags }));
+            const dre = dictRegex();
+            rows.push({ r: { cat: '社内情報', label: '社内辞書', sev: 'high', desc: DICT_DESC, verify: 'なし' }, re: dre ? '/' + dre.source + '/' + dre.flags : '（辞書が空のため未使用）' });
+            $('#ruleTable').innerHTML = rows.map(({ r, re }) =>
+                `<tr><td class="nowrap">${r.cat}</td><td>${esc(r.label)}</td><td><span class="tag ${r.sev}">${SEVJA[r.sev]}</span></td><td>${r.desc}</td><td><code>${esc(re)}</code></td><td>${r.verify}</td></tr>`
+            ).join('');
+        }
+        $('#btnCopyRules').addEventListener('click', () => {
+            const list = RULES.map(r => ({ category: r.cat, label: r.label, severity: r.sev, pattern: r.re.source, flags: r.re.flags, validator: r.check ? r.check.name : null }));
+            copyText(JSON.stringify(list, null, 2));
+        });
+
+        /* ---------- タブ ---------- */
+        function showView(id) {
+            $$('.tabs button').forEach(b => {
+                const on = b.dataset.view === id;
+                b.setAttribute('aria-selected', on);
+                $('#' + b.dataset.view).hidden = !on;
+            });
+            if (id === 'viewLogic') renderRuleTable();
+        }
+        $$('.tabs button').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
+
+        /* ---------- 入力・辞書 ---------- */
+        const SAMPLE = `【社外秘】来期の新製品 Project Falcon について、以下の議事録を要約してください。
+
+参加者：営業部 佐藤部長、開発の田中さん
+連絡先：sato.taro@acme-corp.co.jp / 090-1234-5678
+送付先：〒150-0002 東京都渋谷区渋谷2-21-1
+
+・発表前のため取扱注意。来期の売上目標は 12億円、粗利 3,500万円を想定
+・検証環境は https://jira.acme.internal/browse/FAL-102 と 192.168.10.24
+・テスト用に password: Falcon2026! を共有済み
+・APIキー sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz012345 を使用中
+・社員番号: A10234 の山本さんがリード
+・経費精算カード 4111-1111-1111-1111（テスト番号）、注文番号 1234-5678-9012-3456`;
+
+        function parseDict() {
+            dictTerms = $('#dict').value.split(/[,、，\n]/).map(s => s.trim()).filter(s => s.length >= 2);
+            lsSet(KEY, $('#dict').value);
+        }
+        function insertSample() {
+            $('#src').value = SAMPLE;
+            if (!$('#dict').value) { $('#dict').value = 'Project Falcon, アクメ'; parseDict(); }
+            render();
+        }
+        const update = debounce(render, 200);
+        $('#src').addEventListener('input', update);
+        $('#dict').addEventListener('input', () => { parseDict(); update(); });
+        $('#btnSample').addEventListener('click', insertSample);
+        $('#btnClear').addEventListener('click', () => { $('#src').value = ''; render(); });
+        $('#btnCopy').addEventListener('click', () => copyText($('#masked').textContent));
+
+        $('#dict').value = lsGet(KEY, '');
+        parseDict();
+        render();
+
+        initCommon({
+            steps: () => [
+                { popover: { title: '🛡️ Prompt Guard', description: 'AIに貼り付ける前に、個人情報・社内情報・認証情報っぽいものを検出して警告します。入力はブラウザ内だけで処理し、外部には送りません。', onNextClick: (el, step, { driver }) => { showView('viewCheck'); driver.moveNext(); } } },
+                { element: '#inputCard', popover: { title: '① 送る前の文章を貼る', description: 'AIに投げる予定の文章をそのまま貼り付けます。入力すると自動でチェックされます。', side: 'right', align: 'start' } },
+                { element: '#btnSample', popover: { title: 'まずはサンプルで試す', description: '「次へ」でサンプル文を入れます。個人情報や社内情報をわざと混ぜた例文です。', side: 'bottom', align: 'start', onNextClick: (el, step, { driver }) => { if (!$('#src').value.trim()) insertSample(); driver.moveNext(); } } },
+                { element: '#dictCard', popover: { title: '② 社内辞書', description: '会社名・プロジェクト名・顧客名など、正規表現では拾えない固有名詞を登録すると「重大」として検出します。', side: 'right', align: 'start' } },
+                { element: '#verdict', popover: { title: '③ 全体の判定', description: '見つかった中で一番重いものに合わせて、送ってよいかを4段階で表示します。', side: 'left', align: 'start' } },
+                { element: '#preview', popover: { title: 'どこが引っかかったか', description: '検出箇所を色でハイライト。赤＝重大、黄＝要確認、青＝参考。マウスを乗せると種類が出ます。', side: 'left', align: 'start' } },
+                { element: '#findings', popover: { title: '検出の内訳', description: '種類と理由の一覧。カードならブランド名、電話なら携帯/固定などの判定結果も添えています。', side: 'left', align: 'start' } },
+                { element: '#maskedCard', popover: { title: '④ マスクして送る', description: '検出箇所を [EMAIL_1] のような記号に置き換えた文章です。コピーしてそのままAIに貼れます。', side: 'left', align: 'start' } },
+                { element: '#tabLogic', popover: { title: 'ロジック説明', description: '各検出ルールの正規表現と、検証・判定の考え方をまとめています。正規表現はJSONでコピーもできます。', side: 'bottom', align: 'start' } },
+                { element: '#btnTheme', popover: { title: 'ライト / ダーク', description: '「自動」「ライト」「ダーク」を順に切り替えます。', side: 'bottom', align: 'end' } },
+                { element: '#btnHelp', popover: { title: 'ツアーをもう一度', description: 'このボタンでいつでも再表示できます。URLに ?onBoarding=1 を付けて開いても始まります。', side: 'bottom', align: 'end' } }
+            ]
+        });
+    </script>
+<style>@media print{#tool-backlink{display:none!important}}</style><footer id="tool-backlink" style="flex:none;max-width:1200px;margin:0 auto;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));text-align:center"><a href="../index.html" style="display:inline-block;padding:6px 14px;border-radius:999px;background:rgba(127,127,127,.15);color:inherit;font:600 12px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.08em;text-decoration:none;opacity:.85">&larr; 一覧に戻る</a></footer>
+</body>
+
+</html>
