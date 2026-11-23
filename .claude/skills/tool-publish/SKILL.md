@@ -56,7 +56,7 @@ python3 scripts/tool.py lint NAME --fix --backlink
 - JS 内の全角クォート疑い → 文字列の区切りに使われていれば半角に直す。
 - 説明・短い名前・追加日の欠落 → 次の手順で付ける。
 
-規約（tool-style）から大きく外れている点（テーマ切替がない、`localStorage` を try/catch なしで使っている、外部ドメイン（CDN・Google Fonts など）から読み込んでいるなど）に気づいたら、ユーザーに伝えて直すか確認する。
+規約（tool-style）から大きく外れている点（テーマ切替がない、`localStorage` を try/catch なしで使っている、外部ドメイン（CDN・Google Fonts など）から読み込んでいるなど。外部読み込みは lint が `[要対応]` で出すので、tool-vendor スキルで `docs/vendor/` に移す）に気づいたら、ユーザーに伝えて直すか確認する。
 
 ## 5. メタ情報を付ける
 

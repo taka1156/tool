@@ -1,0 +1,93 @@
+{
+  "$comment": "docs/vendor/ に置いた外部ライブラリ・フォントの台帳。python3 scripts/tool.py build で docs/licenses.html を生成する。追加は python3 scripts/tool.py vendor add（手順は .claude/skills/tool-vendor/SKILL.md）",
+  "entries": [
+    {
+      "kind": "library",
+      "name": "driver.js",
+      "npm": "driver.js",
+      "version": "1.3.5",
+      "dir": "driver.js/1.3.5",
+      "license": "MIT",
+      "licenseFiles": ["license"],
+      "note": "",
+      "source": "https://github.com/kamranahmedse/driver.js"
+    },
+    {
+      "kind": "library",
+      "name": "marked",
+      "npm": "marked",
+      "version": "12.0.2",
+      "dir": "marked/12.0.2",
+      "license": "MIT",
+      "licenseFiles": ["LICENSE.md"],
+      "note": "",
+      "source": "https://github.com/markedjs/marked"
+    },
+    {
+      "kind": "library",
+      "name": "DOMPurify",
+      "npm": "dompurify",
+      "version": "3.1.6",
+      "dir": "dompurify/3.1.6",
+      "license": "Apache-2.0",
+      "licenseFiles": ["LICENSE"],
+      "note": "Apache-2.0 / MPL-2.0 のデュアルライセンスから Apache-2.0 を選択",
+      "source": "https://github.com/cure53/DOMPurify"
+    },
+    {
+      "kind": "library",
+      "name": "Mermaid",
+      "npm": "mermaid",
+      "version": "11.17.2",
+      "dir": "mermaid/11.17.2",
+      "license": "MIT",
+      "licenseFiles": ["LICENSE"],
+      "note": "",
+      "source": "https://github.com/mermaid-js/mermaid"
+    },
+    {
+      "kind": "library",
+      "name": "JSZip",
+      "npm": "jszip",
+      "version": "3.10.2",
+      "dir": "jszip/3.10.2",
+      "license": "MIT",
+      "licenseFiles": ["LICENSE.markdown"],
+      "note": "MIT / GPL-3.0 のデュアルライセンスから MIT を選択",
+      "source": "https://github.com/Stuk/jszip"
+    },
+    {
+      "kind": "library",
+      "name": "Cropper.js",
+      "npm": "cropperjs",
+      "version": "1.7.0",
+      "dir": "cropperjs/1.7.0",
+      "license": "MIT",
+      "licenseFiles": ["LICENSE"],
+      "note": "",
+      "source": "https://github.com/fengyuanchen/cropperjs"
+    },
+    {
+      "kind": "font",
+      "name": "IBM Plex Mono",
+      "npm": "@ibm/plex-mono",
+      "version": "2.5.0",
+      "dir": "fonts/ibm-plex-mono/2.5.0",
+      "license": "OFL-1.1",
+      "licenseFiles": ["LICENSE.txt"],
+      "note": "予約フォント名 \"Plex\"。IBM 公式の分割ファイルを無加工で配信",
+      "source": "https://github.com/IBM/plex"
+    },
+    {
+      "kind": "font",
+      "name": "Zen Kaku Gothic New",
+      "npm": "@fontsource/zen-kaku-gothic-new",
+      "version": "5.3.1",
+      "dir": "fonts/zen-kaku-gothic-new/5.3.1",
+      "license": "OFL-1.1",
+      "licenseFiles": ["LICENSE"],
+      "note": "@fontsource の分割 woff2（400 / 500 / 700）を無加工で配信。CSS は .woff フォールバックを除いて連結",
+      "source": "https://github.com/googlefonts/zen-kakugothic"
+    }
+  ]
+}

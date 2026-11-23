@@ -10,6 +10,8 @@
   python3 scripts/tool.py meta  TOOL [--title T] [--desc D] [--name N] [--category C] [--date YYYY-MM-DD]
   python3 scripts/tool.py build [--check]
   python3 scripts/tool.py list
+  python3 scripts/tool.py vendor add PKG@VER --file DIST... [--kind font] [--license SPDX]
+  python3 scripts/tool.py vendor list | check | remove DIR
 
 TOOL / NAME は「crop」「crop.html」「docs/feat/crop.html」のどれでもよい。
 置き場所（docs/feat/）やテンプレートの場所はこのスクリプトだけが知っている。
@@ -21,6 +23,9 @@ TOOL / NAME は「crop」「crop.html」「docs/feat/crop.html」のどれでも
   <meta name="tool:name">         一覧に出る短い名前（例: crop）。なければファイル名
   <meta name="tool:category">     一覧の分類（画像系 / ドキュメント系 / その他）。なければ「その他」
   <meta name="tool:date">         追加日 YYYY-MM-DD（分類の中で新しい順）
+
+外部ライブラリ・フォントは外部 CDN から読み込まず docs/vendor/ に置く。台帳は docs/vendor/vendor.json。
+build で docs/licenses.html の一覧部分（LICENSES:BEGIN〜END）も再生成する。
 """
 from __future__ import annotations
 
@@ -344,6 +349,11 @@ def lint_text(text: str, path: Path, add_backlink: bool) -> tuple[str, list[str]
         elif BACKLINK_ID not in text:
             problems.append("フッターに「一覧に戻る」ボタンがない（--backlink で追加）")
 
+    if not is_index:
+        for u in external_loads(text):
+            problems.append(f"外部ドメインから読み込んでいる: {u}（docs/vendor/ に置く。tool.py vendor add）")
+        problems += vendor_ref_problems(text, load_vendor())
+
     new = apply_head(text, path)
     if new != text:
         fixed.append("canonical・アイコン・OGP の head タグを追加／更新")
@@ -419,6 +429,284 @@ def cmd_meta(args) -> int:
     return 0
 
 
+# ---------------------------------------------------------------- vendor（外部ライブラリ・フォント）
+
+VENDOR = DOCS / "vendor"
+VENDOR_JSON = VENDOR / "vendor.json"
+LICENSES = DOCS / "licenses.html"
+LIC_BEGIN = "<!-- LICENSES:BEGIN（scripts/tool.py build が docs/vendor/vendor.json から自動生成。手で編集しない） -->"
+LIC_END = "<!-- LICENSES:END -->"
+LIC_RE = re.compile(re.escape(LIC_BEGIN) + r".*?" + re.escape(LIC_END), re.S)
+KINDS = {"library": "ライブラリ", "font": "フォント"}
+# 確認なしで使ってよいライセンス（SPDX）。それ以外はユーザーの了承を得てから --allow-license で入れる
+ALLOWED_LICENSES = {"MIT", "ISC", "BSD-2-Clause", "BSD-3-Clause", "0BSD", "Apache-2.0",
+                    "Unlicense", "CC0-1.0", "OFL-1.1", "Zlib"}
+LICENSE_FILE_RE = re.compile(r"^(licen[cs]e|copying|notice|ofl)([.\-_].*)?$", re.I)
+VENDOR_REF_RE = re.compile(r"vendor/([^\s\"'`()<>?#]+)")
+# 外部ドメインからの読み込み（<a href> のリンクや canonical / OGP は対象外）
+EXT_SCRIPT_RE = re.compile(r"<script\b[^>]*\bsrc\s*=\s*[\"']((?:https?:)?//[^\"']+)", re.I)
+EXT_LINK_RE = re.compile(r"<link\b[^>]*>", re.I)
+EXT_ASSET_RE = re.compile(r"[\"'`(]((?:https?:)?//[^\"'`\s)]+?\.(?:m?js|css|woff2?|ttf|otf)(?:\?[^\"'`\s)]*)?)[\"'`)]", re.I)
+EXT_FONTS_RE = re.compile(r"(?:https?:)?//fonts\.(?:googleapis|gstatic)\.com[^\"'`\s)]*", re.I)
+
+
+def load_vendor() -> list[dict]:
+    if not VENDOR_JSON.is_file():
+        return []
+    return json.loads(VENDOR_JSON.read_text(encoding="utf-8")).get("entries", [])
+
+
+def save_vendor(entries: list[dict]) -> None:
+    data = json.loads(VENDOR_JSON.read_text(encoding="utf-8")) if VENDOR_JSON.is_file() else {}
+    data["entries"] = entries
+    VENDOR_JSON.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def vendor_usage(entries: list[dict]) -> dict[str, list[str]]:
+    """dir → そのライブラリを参照しているツールの短い名前"""
+    usage: dict[str, list[str]] = {e["dir"]: [] for e in entries}
+    for p in tool_files():
+        text = p.read_text(encoding="utf-8")
+        name = read_meta(p)["name"]
+        for e in entries:
+            if f"vendor/{e['dir']}/" in text:
+                usage[e["dir"]].append(name)
+    return usage
+
+
+def external_loads(text: str) -> list[str]:
+    """外部ドメインから読み込んでいる URL（CDN・Google Fonts など）"""
+    found: list[str] = []
+    found += EXT_SCRIPT_RE.findall(text)
+    for tag in EXT_LINK_RE.findall(text):
+        rel_ = re.search(r"\brel\s*=\s*[\"']?([^\"'>]+)", tag, re.I)
+        href = re.search(r"\bhref\s*=\s*[\"']((?:https?:)?//[^\"']+)", tag, re.I)
+        if href and rel_ and re.search(r"stylesheet|preload|modulepreload|prefetch", rel_.group(1), re.I):
+            found.append(href.group(1))
+    found += EXT_ASSET_RE.findall(text)
+    found += EXT_FONTS_RE.findall(text)
+    return list(dict.fromkeys(found))
+
+
+def vendor_ref_problems(text: str, entries: list[dict]) -> list[str]:
+    """../vendor/ の参照が台帳に載っていて、ファイルも実在するか"""
+    problems = []
+    dirs = [e["dir"] for e in entries]
+    for ref in dict.fromkeys(VENDOR_REF_RE.findall(text)):
+        if not any(ref.startswith(d + "/") for d in dirs):
+            problems.append(f"vendor/{ref} は docs/vendor/vendor.json に登録されていない（tool.py vendor add で追加）")
+        elif not (VENDOR / ref).is_file():
+            problems.append(f"vendor/{ref} のファイルがない")
+    return problems
+
+
+def render_licenses(entries: list[dict], usage: dict[str, list[str]]) -> str:
+    e = lambda v: html.escape(str(v), quote=True)
+    n_tools = len(tool_files())
+    out = [LIC_BEGIN]
+    for kind, label in KINDS.items():
+        items = [x for x in entries if x.get("kind", "library") == kind]
+        if not items:
+            continue
+        out.append(f'    <h2>{label}<span class="count">{len(items)}</span></h2>')
+        out.append('    <ul class="libs">')
+        for x in items:
+            users = usage.get(x["dir"], [])
+            used = "全ツール" if users and len(users) == n_tools else (" / ".join(users) or "（未使用）")
+            note = f'<span class="note">{e(x["note"])}</span>' if x.get("note") else ""
+            src = x.get("source", "")
+            out.append("      <li>")
+            out.append(f'        <div class="name">{e(x["name"])}<span class="ver">{e(x["version"])}</span></div>')
+            out.append('        <ul class="meta">')
+            out.append(f'          <li><span class="k">ライセンス</span>{e(x["license"])}{note}</li>')
+            out.append(f'          <li><span class="k">使っているツール</span>{e(used)}</li>')
+            if src:
+                out.append(f'          <li><span class="k">配布元</span><a href="{e(src)}">{e(re.sub(r"^https?://", "", src))}</a></li>')
+            if x.get("npm"):
+                out.append(f'          <li><span class="k">npm</span>{e(x["npm"])}@{e(x["version"])}</li>')
+            for lf in x.get("licenseFiles", []):
+                path = f'vendor/{x["dir"]}/{lf}'
+                out.append(f'          <li><span class="k">ライセンス文</span><a href="{e(path)}">{e(path)}</a></li>')
+            out.append("        </ul>")
+            for lf in x.get("licenseFiles", []):
+                f = VENDOR / x["dir"] / lf
+                body = f.read_text(encoding="utf-8", errors="replace").strip() if f.is_file() else "（ファイルがありません）"
+                out.append("        <details>")
+                out.append(f"          <summary>ライセンス全文を表示（{e(lf)}）</summary>")
+                out.append(f"          <pre>{e(body)}</pre>")
+                out.append("        </details>")
+            out.append("      </li>")
+        out.append("    </ul>")
+    out.append("    " + LIC_END)
+    return "\n".join(out)
+
+
+def build_licenses(check: bool) -> bool:
+    """licenses.html を再生成。変わったら True"""
+    if not LICENSES.is_file():
+        return False
+    src = LICENSES.read_text(encoding="utf-8")
+    if not LIC_RE.search(src):
+        print(f"docs/licenses.html に LICENSES:BEGIN / END マーカーがありません", file=sys.stderr)
+        return False
+    entries = load_vendor()
+    block = render_licenses(entries, vendor_usage(entries))
+    new = apply_head(LIC_RE.sub(lambda _: block, src, count=1), LICENSES)
+    if new == src:
+        return False
+    if not check:
+        LICENSES.write_text(new, encoding="utf-8")
+    return True
+
+
+def _npm_pack(spec: str, workdir: Path) -> Path:
+    """npm pack で取得して展開し、package/ のパスを返す"""
+    import tarfile
+    try:
+        out = subprocess.run(["npm", "pack", spec, "--json"], cwd=workdir,
+                             capture_output=True, text=True, check=True).stdout
+    except FileNotFoundError:
+        sys.exit("npm が見つかりません（Node.js をインストールしてください）")
+    except subprocess.CalledProcessError as ex:
+        sys.exit(f"npm pack {spec} に失敗しました:\n{ex.stderr.strip()}")
+    tgz = workdir / json.loads(out)[0]["filename"]
+    with tarfile.open(tgz) as tf:
+        try:
+            tf.extractall(workdir, filter="data")
+        except TypeError:  # Python < 3.12
+            tf.extractall(workdir)
+    return workdir / "package"
+
+
+def cmd_vendor(args) -> int:
+    entries = load_vendor()
+
+    if args.vcmd == "list":
+        usage = vendor_usage(entries)
+        for x in entries:
+            users = " / ".join(usage[x["dir"]]) or "（未使用）"
+            print(f"{x.get('kind','library'):<8} {x['name']:<22} {x['version']:<9} {x['license']:<12} vendor/{x['dir']:<34} {users}")
+        return 0
+
+    if args.vcmd == "check":
+        bad = 0
+        usage = vendor_usage(entries)
+        known = set()
+        for x in entries:
+            d = VENDOR / x["dir"]
+            known.add(d.resolve())
+            msgs = []
+            if not d.is_dir():
+                msgs.append(f"[要対応] フォルダがない: vendor/{x['dir']}")
+            if not x.get("licenseFiles"):
+                msgs.append("[要対応] licenseFiles が空")
+            for lf in x.get("licenseFiles", []):
+                if not (d / lf).is_file():
+                    msgs.append(f"[要対応] ライセンス文がない: vendor/{x['dir']}/{lf}")
+            if x["version"] not in x["dir"].split("/"):
+                msgs.append(f"[要対応] dir に版（{x['version']}）が入っていない: {x['dir']}")
+            if x.get("license") not in ALLOWED_LICENSES and not x.get("approved"):
+                msgs.append(f"[要確認] ライセンス {x.get('license')} は許可リスト外（ユーザーの了承後、approved に了承日を入れる）")
+            if not usage[x["dir"]]:
+                msgs.append("[注意] どのツールからも使われていない（不要なら tool.py vendor remove）")
+            print(f"== {x['name']} {x['version']}")
+            for m in msgs or ["  OK"]:
+                print("  " + m.strip())
+            if any(m.startswith(("[要対応]", "[要確認]")) for m in msgs):
+                bad = 1
+        # 台帳にないフォルダ
+        for d in sorted(p for p in VENDOR.rglob("*") if p.is_dir()):
+            if not any(f.is_file() for f in d.iterdir()):
+                continue
+            if not any(d.resolve() == k or k in d.resolve().parents for k in known):
+                print(f"[要対応] 台帳にないフォルダ: {d.relative_to(DOCS).as_posix()}")
+                bad = 1
+        return bad
+
+    if args.vcmd == "remove":
+        hit = [x for x in entries if args.target in (x["dir"], x["name"], f"{x['name']}@{x['version']}")]
+        if len(hit) != 1:
+            sys.exit(f"1 件に絞れません（dir で指定してください）: {[x['dir'] for x in hit] or 'なし'}")
+        x = hit[0]
+        users = vendor_usage(entries)[x["dir"]]
+        if users and not args.force:
+            sys.exit(f"まだ使われています: {' / '.join(users)}（参照を外してから。強制は --force）")
+        import shutil
+        shutil.rmtree(VENDOR / x["dir"], ignore_errors=True)
+        save_vendor([y for y in entries if y is not x])
+        print(f"削除: vendor/{x['dir']}（python3 scripts/tool.py build で licenses.html を更新）")
+        return 0
+
+    # add
+    import shutil
+    import tempfile
+    import glob as globmod
+    with tempfile.TemporaryDirectory() as tmp:
+        pkg = _npm_pack(args.spec, Path(tmp))
+        meta = json.loads((pkg / "package.json").read_text(encoding="utf-8"))
+        npm_name, version = meta["name"], meta["version"]
+        lic = args.license or meta.get("license") or ""
+        if isinstance(lic, dict):
+            lic = lic.get("type", "")
+        if re.search(r"\b(OR|AND)\b", lic):
+            sys.exit(f"ライセンスが複合指定です（{lic}）。使うものを --license で 1 つ選んでください")
+        if lic not in ALLOWED_LICENSES and not args.allow_license:
+            sys.exit(f"ライセンス {lic or '（不明）'} は許可リスト外です。ユーザーの了承を得てから --allow-license YYYY-MM-DD を付けてください")
+        short = npm_name.split("/")[-1]
+        kind = args.kind
+        d = args.dir or (f"fonts/{short}/{version}" if kind == "font" else f"{short}/{version}")
+        if version not in d.split("/"):
+            sys.exit(f"--dir には版（{version}）を含めてください: {d}")
+        if any(x["dir"] == d for x in entries) and not args.force:
+            sys.exit(f"すでに登録済み: vendor/{d}（入れ直すなら --force）")
+        dest = VENDOR / d
+        files: list[Path] = []
+        for pat in args.file:
+            matched = [Path(p) for p in globmod.glob(str(pkg / pat), recursive=True) if Path(p).is_file()]
+            if not matched:
+                sys.exit(f"パッケージ内に見つかりません: {pat}（中身: npm pack {args.spec} して確認）")
+            files += matched
+        lic_files = [p for p in pkg.iterdir() if p.is_file() and LICENSE_FILE_RE.match(p.name)]
+        if not lic_files:
+            sys.exit("パッケージにライセンス文（LICENSE / COPYING / NOTICE / OFL）がありません。配布元から入手できるか確認してください")
+        if dest.exists():
+            shutil.rmtree(dest)
+        dest.mkdir(parents=True)
+        for f in files + lic_files:
+            rel_ = f.relative_to(pkg)
+            # 既定ではファイル名だけで置く（--keep-tree でパッケージ内の階層を保つ）
+            out = dest / (rel_ if args.keep_tree else f.name)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(f, out)
+        repo = meta.get("repository")
+        repo = repo.get("url", "") if isinstance(repo, dict) else (repo or "")
+        repo = re.sub(r"^git\+|\.git$", "", repo).replace("git://", "https://")
+        if repo.startswith("github:"):
+            repo = "https://github.com/" + repo[7:]
+        entry = {
+            "kind": kind,
+            "name": args.name or npm_name,
+            "npm": npm_name,
+            "version": version,
+            "dir": d,
+            "license": lic,
+            "licenseFiles": sorted(p.name for p in lic_files),
+            "note": args.note or "",
+            "source": args.source or repo or meta.get("homepage", ""),
+        }
+        if args.allow_license:
+            entry["approved"] = args.allow_license
+        entries = [x for x in entries if x["dir"] != d] + [entry]
+        save_vendor(entries)
+    print(json.dumps(entry, ensure_ascii=False, indent=2))
+    print("\n配置したファイル:")
+    for f in sorted(dest.rglob("*")):
+        if f.is_file():
+            print(f"  ../vendor/{f.relative_to(VENDOR).as_posix()}")
+    print("\nツールからは上のパスで読み込み、python3 scripts/tool.py build で licenses.html を更新してください")
+    return 0
+
+
 # ---------------------------------------------------------------- build
 
 def render_block(tools: list[dict]) -> str:
@@ -448,8 +736,11 @@ def cmd_build(args) -> int:
         print(f"docs/index.html に {BEGIN} / {END} マーカーがありません", file=sys.stderr)
         return 2
     new = apply_head(pat.sub(lambda _: render_block(tools), src, count=1), INDEX)
+    lic_changed = build_licenses(args.check)
+    if lic_changed:
+        print(("docs/licenses.html が古い" if args.check else "docs/licenses.html を更新"))
     if args.check:
-        if new != src or stale:
+        if new != src or stale or lic_changed:
             print("docs/index.html が古いです（python3 scripts/tool.py build を実行）")
             return 1
         print("docs/index.html は最新です")
@@ -551,6 +842,28 @@ def main() -> int:
     p = sub.add_parser("build", help="index.html の一覧を再生成")
     p.add_argument("--check", action="store_true")
     p.set_defaults(func=cmd_build)
+
+    p = sub.add_parser("vendor", help="外部ライブラリ・フォント（docs/vendor/）の追加・確認・削除")
+    vs = p.add_subparsers(dest="vcmd", required=True)
+    q = vs.add_parser("add", help="npm から取得して docs/vendor/ に置き、vendor.json に登録")
+    q.add_argument("spec", help="npm のパッケージと版（例: marked@12.0.2）。版は必ず固定する")
+    q.add_argument("--file", action="append", required=True,
+                   help="パッケージ内の配布ファイル（package/ からの相対パス。glob 可。複数指定可）")
+    q.add_argument("--name", help="表示名（既定は npm のパッケージ名）")
+    q.add_argument("--kind", choices=list(KINDS), default="library")
+    q.add_argument("--dir", help="vendor/ 以下の置き場所（既定: <名前>/<版>、フォントは fonts/<名前>/<版>）")
+    q.add_argument("--license", help="SPDX。デュアルライセンスのときは使うほうを 1 つ指定")
+    q.add_argument("--allow-license", metavar="YYYY-MM-DD", help="許可リスト外のライセンスをユーザーが了承した日")
+    q.add_argument("--note", help="ライセンスページに出る補足（デュアルの選択・加工の有無など）")
+    q.add_argument("--source", help="配布元 URL（既定は package.json の repository）")
+    q.add_argument("--keep-tree", action="store_true", help="パッケージ内のフォルダ階層を保ってコピー")
+    q.add_argument("--force", action="store_true", help="同じ dir を入れ直す")
+    q = vs.add_parser("list", help="登録済みの一覧と使っているツール")
+    q = vs.add_parser("check", help="ファイル・ライセンス文・未使用・未登録フォルダの確認")
+    q = vs.add_parser("remove", help="登録とフォルダを削除（dir か 名前@版 で指定）")
+    q.add_argument("target")
+    q.add_argument("--force", action="store_true", help="使われていても削除")
+    p.set_defaults(func=cmd_vendor)
 
     p = sub.add_parser("list", help="ツール一覧を表示")
     p.set_defaults(func=cmd_list)

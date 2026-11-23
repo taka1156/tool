@@ -1,6 +1,6 @@
 name: Build tool index
 
-# ツール（docs/feat/*.html）が push されたら、一覧と各ページの canonical・アイコン・OGP タグを再生成してコミットする。
+# ツール（docs/feat/*.html）が push されたら、一覧と各ページの canonical・アイコン・OGP タグ、ライセンスページを再生成してコミットする。
 # GitHub の画面から HTML を直接アップロードしても一覧に載る。
 on:
   push:
@@ -10,6 +10,7 @@ on:
       - "docs/CNAME" # ドメインが変わったら canonical / OGP の URL も更新
       - "scripts/tool.py"
       - "docs/assets/ogp.png" # 差し替えたら og:image の ?v= を更新
+      - "docs/vendor/vendor.json" # 台帳が変わったら licenses.html を再生成
   workflow_dispatch:
 
 permissions:

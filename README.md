@@ -105,6 +105,7 @@ AI に貼り付ける前の文章から、個人情報・社内情報・認証�
 | 「この HTML を tool に入れて」 | `tool-publish` | 崩れ修正 → 説明・名前付け → 一覧更新 → README 追記 → push |
 | 「〜するツールを作って」 | `tool-style` | デザイン規約とテンプレートに沿って新規作成 |
 | 「さっきの処理をツールにして」 | `tool-from-chat` | 会話内容をツール化して登録まで |
+| 「〜ライブラリを使いたい」「〜を最新版に上げて」 | `tool-vendor` | ライセンス確認 → `docs/vendor/` に配置・台帳登録 → ライセンスページ再生成 |
 
 新しい会話では最初に「taka1156/tool リポジトリで作業して」と伝えるとスキルが効きます。
 
@@ -115,12 +116,12 @@ AI に貼り付ける前の文章から、個人情報・社内情報・認証�
 ├── docs/                      # 公開フォルダ（ここだけを公開する）
 │   ├── index.html             # ツール一覧（一覧部分は自動生成）
 │   ├── CNAME                  # 独自ドメイン
-│   ├── licenses.html          # 使用ライブラリ・フォントとライセンスの一覧
+│   ├── licenses.html          # 使用ライブラリ・フォントとライセンスの一覧（一覧部分は自動生成）
 │   ├── assets/                # favicon.ico / apple-touch-icon.png / ogp.png
-│   ├── vendor/                # 外部ライブラリ・フォント（npm 配布物をそのまま。LICENSE 同梱）
+│   ├── vendor/                # 外部ライブラリ・フォント（npm 配布物をそのまま。LICENSE 同梱。台帳は vendor.json）
 │   └── feat/                  # 各ツールの HTML（公開 URL は /feat/NAME.html）
 ├── scripts/tool.py            # 取り込み・崩れチェック・メタ情報・一覧生成
-├── .claude/skills/            # tool-style / tool-publish / tool-from-chat
+├── .claude/skills/            # tool-style / tool-publish / tool-from-chat / tool-vendor
 └── .github/workflows/         # push 時に一覧を再生成
 ```
 
@@ -137,6 +138,7 @@ AI に貼り付ける前の文章から、個人情報・社内情報・認証�
   ```
 
 - `docs/index.html` の `// TOOLS:BEGIN`〜`// TOOLS:END` は自動生成です。手で編集しません（分類ごとに見出しを付け、その中は新しい順。分類の種類と表示順は `scripts/tool.py` の `CATEGORIES`）
+- 外部ライブラリ・フォントは `docs/vendor/` に置き、台帳 `docs/vendor/vendor.json` に登録します（`tool.py vendor add`）。`docs/licenses.html` の `LICENSES:BEGIN`〜`LICENSES:END` は台帳と各ツールの参照から自動生成です（使っているツールも自動判定）
 - 全ページの `<!-- tool:head -->` ブロック（canonical・アイコン・OGP）も自動生成です。og:title は「title | tool」、og:description は description から作られます
 - 各ツールのフッターに「← 一覧に戻る」ボタン、一覧ページに「更新」ボタン（キャッシュを避けて再読み込み）があります
 - master に `docs/**/*.html` が push されると、GitHub Actions が一覧を再生成します（GitHub の画面から HTML を直接アップロードしても載ります）
@@ -150,6 +152,8 @@ python3 scripts/tool.py lint foo --fix --backlink      # 崩れチェック・�
 python3 scripts/tool.py meta foo --name foo --desc "…" --category 画像系 --date
 python3 scripts/tool.py build                          # 一覧を再生成
 python3 scripts/tool.py list                           # 一覧を表示
+python3 scripts/tool.py vendor add marked@12.0.2 --file marked.min.js   # ライブラリを docs/vendor/ に追加
+python3 scripts/tool.py vendor list | check            # 台帳の一覧・確認
 ```
 
 ## 注意点
