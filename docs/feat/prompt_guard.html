@@ -405,7 +405,7 @@
                     <h2>② 社内辞書</h2>
                     <div class="field">
                         <label for="dict">会社名・プロジェクト名・顧客名・社内ドメインなど（カンマ区切り）</label>
-                        <input type="text" id="dict" placeholder="例: 株式会社アクメ, Project Falcon, acme-corp.co.jp">
+                        <input type="text" id="dict" placeholder="例: 株式会社サンプル商事, Project Falcon, example.com">
                     </div>
                     <div class="hint">登録した語は「重大」として検出します。辞書はこのブラウザにだけ保存されます。</div>
                 </section>
@@ -488,7 +488,7 @@
                 </tbody>
             </table></div>
             <p><b>マスク</b>：ヒット箇所を <code>[種別_連番]</code> に置換。同じ文字列には同じ番号を振ります。</p>
-            <pre>sato@acme.co.jp に連絡、cc: sato@acme.co.jp
+            <pre>sato@example.com に連絡、cc: sato@example.com
 ↓
 [EMAIL_1] に連絡、cc: [EMAIL_1]</pre>
         </section>
@@ -757,14 +757,14 @@
         $$('.tabs button').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
 
         /* ---------- 入力・辞書 ---------- */
-        const SAMPLE = `【社外秘】来期の新製品 Project Falcon について、以下の議事録を要約してください。
+        const SAMPLE = `【社外秘】来期の新製品 Project Falcon（サンプル商事向け）について、以下の議事録を要約してください。
 
 参加者：営業部 佐藤部長、開発の田中さん
-連絡先：sato.taro@acme-corp.co.jp / 090-1234-5678
+連絡先：sato.taro@example.com / 090-1234-5678
 送付先：〒150-0002 東京都渋谷区渋谷2-21-1
 
 ・発表前のため取扱注意。来期の売上目標は 12億円、粗利 3,500万円を想定
-・検証環境は https://jira.acme.internal/browse/FAL-102 と 192.168.10.24
+・検証環境は https://jira.example.internal/browse/FAL-102 と 192.168.10.24
 ・テスト用に password: Falcon2026! を共有済み
 ・APIキー sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz012345 を使用中
 ・社員番号: A10234 の山本さんがリード
@@ -776,7 +776,7 @@
         }
         function insertSample() {
             $('#src').value = SAMPLE;
-            if (!$('#dict').value) { $('#dict').value = 'Project Falcon, アクメ'; parseDict(); }
+            if (!$('#dict').value) { $('#dict').value = 'Project Falcon, サンプル商事'; parseDict(); }
             render();
         }
         const update = debounce(render, 200);
