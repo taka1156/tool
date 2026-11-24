@@ -15,5 +15,3 @@ python3 scripts/tool.py vendor remove marked@12.0.2                     # 削除
 ```
 
 フォルダは `<名前>/<版>/`（フォントは `fonts/<名前>/<版>/`）。版を上げるときは新しいフォルダを足し、参照を切り替えてから古いほうを消します。
-
-例外: `fonts/zen-kaku-gothic-new/5.3.1/zen-kaku-gothic-new.css` は fontsource の `400.css` / `500.css` / `700.css` を連結し、同梱しない `.woff` へのフォールバック指定を除いたものです（フォント本体は無加工）。
